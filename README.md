@@ -28,9 +28,9 @@ flowchart TD
 | --- | --- |
 | Web app | Next.js 16 (App Router, TypeScript), Tailwind CSS |
 | Engine | Python, FastAPI, Google OR-Tools CP-SAT |
-| Database | PostgreSQL (Neon) *planned* |
+| Database | Supabase (PostgreSQL + Realtime) *planned* |
 | AI | Claude API, structured output, validated by the engine *planned* |
-| Hosting | Vercel (web), Render (engine) |
+| Hosting | Vercel (web), Render (engine), Supabase (database) |
 
 ## Repository layout
 

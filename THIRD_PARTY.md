@@ -16,6 +16,7 @@ All open-source libraries and services this project uses. Versions are pinned in
 | [pytest](https://pytest.org), [HTTPX](https://www.python-httpx.org) | MIT, BSD-3-Clause | Engine tests |
 | [Playwright](https://playwright.dev) | Apache-2.0 | UI smoke tests and screenshots |
 | `validator.py` (Crunch Week organisers) | Provided by organisers | Official scoring check, run unmodified in CI |
-| Vercel, Render, Neon | Hosted services | Hosting for web, engine and database |
+| [Supabase](https://supabase.com) | Hosted service (Apache-2.0 client libraries) | PostgreSQL database, realtime updates |
+| Vercel, Render | Hosted services | Hosting for web and engine |
 
 Starter-pack data (`data/cit_public.json`, `data/samples/`) is provided by the organisers.
