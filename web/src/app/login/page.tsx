@@ -79,15 +79,15 @@ export default function LoginPage() {
         <section className="grid gap-8 pb-16 pt-8 lg:grid-cols-12 lg:gap-10 lg:pt-12">
           {/* Left: what it is, and the way in. */}
           <div className="min-w-0 lg:col-span-4">
-            <span className="inline-flex items-center gap-2 rounded-full bg-sheet px-3 py-1 text-[13px] font-medium text-ink-2 shadow-[var(--shadow-card)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-jade" /> Spectra &apos;27 · Week 7 is planned
-            </span>
-            <h1 className="mt-5 text-[34px] font-semibold leading-[1.1] tracking-[-0.025em] sm:text-[40px]">
+            <h1 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.025em] sm:text-[40px]">
               Classes, midsems and fest events. One plan, no clashes.
             </h1>
-            <p className="mt-4 text-[16px] leading-[1.6] text-ink-2">
+            <p className="mt-4 text-[15px] leading-[1.6] text-ink-2">
               CrunchWeek builds CIT&apos;s timetable, schedules the midsems and decides Spectra venue requests by the institute&apos;s
               priority order. If a room is taken, you get the reason and the nearest free option.
+            </p>
+            <p className="mt-3 flex items-center gap-2 text-[13px] font-medium text-ink-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-jade" aria-hidden /> Spectra &apos;27 · Week 7 is planned
             </p>
 
             <div id="desks" className="mt-8 scroll-mt-20">
@@ -103,7 +103,7 @@ export default function LoginPage() {
                       <Avatar name={u.name} i={i} />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2 text-[15px] font-medium"><span className="truncate">{u.name}</span>
-                          <span className="shrink-0 whitespace-nowrap rounded-full bg-fill px-2 py-px text-[11px] font-medium text-ink-2">{ROLE_LABEL[u.role]}</span>
+                          <span className="shrink-0 whitespace-nowrap rounded-full bg-fill px-2 py-px text-[12px] font-medium text-ink-2">{ROLE_LABEL[u.role]}</span>
                         </span>
                         <span className="block truncate text-[13px] text-ink-3">{u.blurb}</span>
                       </span>
@@ -156,7 +156,7 @@ function Header() {
     <header className="material sticky top-0 z-30 border-b border-rule">
       <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-3 px-5 lg:px-8">
         <Logo />
-        <span className="text-[16px] font-semibold tracking-[-0.01em]">CrunchWeek</span>
+        <span className="text-[15px] font-semibold tracking-[-0.01em]">CrunchWeek</span>
         <span className="hidden text-[13px] text-ink-3 sm:inline">Chilika Institute of Technology</span>
         <nav className="ml-auto flex items-center gap-1 text-[14px]">
           <a href="#how" className="hidden rounded-full px-3 py-1.5 text-ink-2 transition-colors hover:bg-fill hover:text-ink sm:block">How it works</a>
@@ -255,7 +255,7 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
           <button key={d} role="tab" aria-selected={d === day} onClick={() => { setDay(d); setSel(null); }}
             className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors duration-150 ${d === day ? "bg-ink text-paper" : "text-ink-2 hover:bg-fill"}`}>
             {SHORT[d]}
-            {data && <span className={`tabular rounded-full px-1.5 text-[11px] ${d === day ? "bg-paper/20" : "bg-fill"}`}>{counts[d]}</span>}
+            {data && <span className={`tabular rounded-full px-1.5 text-[12px] ${d === day ? "bg-paper/20" : "bg-fill"}`}>{counts[d]}</span>}
           </button>
         ))}
         <span className="ml-auto hidden whitespace-nowrap pl-3 text-[12px] text-ink-3 sm:block">Room size shown next to each venue · count = fest events that day</span>
@@ -267,7 +267,7 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
           <div className="grid" style={{ gridTemplateColumns: `150px repeat(${n}, minmax(0, 1fr))` }}>
             <span />
             {(data?.periods ?? Array.from({ length: 13 }, (_, i) => ({ id: i + 1, start: `${i < 5 ? 8 + i : 9 + i}:00` }))).map((p) => (
-              <span key={p.id} className={`pb-1.5 pl-1 text-[11px] tabular transition-colors ${hover && p.id >= hover.start && p.id < hover.start + hover.span ? "font-semibold text-ink" : "text-ink-3"}`}>{hm(p.start)}</span>
+              <span key={p.id} className={`pb-1.5 pl-1 text-[12px] tabular transition-colors ${hover && p.id >= hover.start && p.id < hover.start + hover.span ? "font-semibold text-ink" : "text-ink-3"}`}>{hm(p.start)}</span>
             ))}
           </div>
           {rooms.map((r) => {
@@ -277,7 +277,7 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
               <div key={r} className="grid border-t border-rule" style={{ gridTemplateColumns: `150px repeat(${n}, minmax(0, 1fr))` }}>
                 <div className={`flex min-w-0 items-baseline gap-1.5 self-center pr-2 transition-colors ${lit ? "text-accent" : ""}`}>
                   <span className="truncate text-[13px] font-medium">{data?.rooms[r]?.name.replace("Classroom ", "Room ") ?? r}</span>
-                  <span className="shrink-0 text-[11px] tabular text-ink-3">{data?.rooms[r]?.capacity ?? ""}</span>
+                  <span className="shrink-0 text-[12px] tabular text-ink-3">{data?.rooms[r]?.capacity ?? ""}</span>
                 </div>
                 <div className="relative col-span-full col-start-2 grid min-h-[42px] py-1" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
                   {/* Hour guides, and the hovered block's time band. */}
@@ -306,16 +306,14 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
 }
 
 function Cell({ b, on, onPick, onHover }: { b: Block; on: boolean; onPick: () => void; onHover: (b: Block | null) => void }) {
-  const tone = b.kind === "class"
-    ? "bg-fill text-ink-2 border-ink-3/50"
-    : b.kind === "spectra" ? "bg-dusk-soft text-ink border-dusk" : "bg-lake-soft text-ink border-lake";
+  const tone = b.kind === "class" ? "blk blk-lecture text-ink-2" : b.kind === "spectra" ? "blk blk-event text-ink" : "blk blk-club text-ink";
   return (
     <button onClick={onPick} onPointerEnter={() => onHover(b)} onFocus={() => onHover(b)} onBlur={() => onHover(null)}
       aria-label={`${b.title}, ${b.sub}`}
-      className={`relative z-10 row-start-1 mx-[2px] my-0.5 flex min-w-0 flex-col justify-center overflow-hidden rounded-[6px] border-l-[3px] px-1.5 py-1 text-left transition-[box-shadow,transform] duration-150 hover:-translate-y-px ${tone} ${on ? "shadow-[0_0_0_2px_var(--blue)]" : "hover:shadow-[var(--shadow-pop)]"}`}
+      className={`relative z-10 row-start-1 mx-[2px] my-0.5 flex min-w-0 flex-col justify-center overflow-hidden rounded-[6px] px-1.5 py-1 text-left transition-[box-shadow,transform] duration-150 hover:-translate-y-px ${tone} ${on ? "shadow-[0_0_0_2px_var(--blue)]" : "hover:shadow-[var(--shadow-pop)]"}`}
       style={{ gridColumn: `${b.start} / span ${b.span}` }}>
       <span className="truncate text-[12px] font-semibold leading-tight">{b.title}</span>
-      {b.span > 1 && <span className="truncate text-[11px] leading-tight text-ink-3">{b.kind === "class" ? b.sub.split(" · ")[0] : b.sub}</span>}
+      {b.span > 1 && <span className="truncate text-[12px] leading-tight text-ink-3">{b.kind === "class" ? b.sub.split(" · ")[0] : b.sub}</span>}
       {b.moved && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-brass" />}
     </button>
   );
@@ -343,17 +341,17 @@ function Detail({ b, data }: { b: Block; data: Data }) {
 }
 
 function Tag({ kind, moved }: { kind: Block["kind"]; moved: boolean }) {
-  if (moved) return <span className="rounded-full bg-brass/15 px-2 py-0.5 text-[11px] font-medium text-brass">Moved to a free venue</span>;
-  if (kind === "class") return <span className="rounded-full bg-fill px-2 py-0.5 text-[11px] font-medium text-ink-2">Class</span>;
-  return <span className="rounded-full bg-jade/15 px-2 py-0.5 text-[11px] font-medium text-jade">Confirmed</span>;
+  if (moved) return <span className="rounded-full bg-brass/15 px-2 py-0.5 text-[12px] font-medium text-brass">Moved to a free venue</span>;
+  if (kind === "class") return <span className="rounded-full bg-fill px-2 py-0.5 text-[12px] font-medium text-ink-2">Class</span>;
+  return <span className="rounded-full bg-jade/15 px-2 py-0.5 text-[12px] font-medium text-jade">Confirmed</span>;
 }
 
 function Legend() {
   return (
     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-2">
-      <li className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-[3px] border-l-2 border-ink-3/50 bg-fill" />Class</li>
-      <li className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-[3px] border-l-2 border-dusk bg-dusk-soft" />Spectra</li>
-      <li className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-[3px] border-l-2 border-lake bg-lake-soft" />Club or department</li>
+      <li className="flex items-center gap-1.5"><i className="blk blk-lecture h-2.5 w-2.5 rounded-[3px]" />Class</li>
+      <li className="flex items-center gap-1.5"><i className="blk blk-event h-2.5 w-2.5 rounded-[3px]" />Spectra</li>
+      <li className="flex items-center gap-1.5"><i className="blk blk-club h-2.5 w-2.5 rounded-[3px]" />Club or department</li>
       <li className="flex items-center gap-1.5"><i className="h-1.5 w-1.5 rounded-full bg-brass" />Moved</li>
     </ul>
   );
@@ -363,7 +361,7 @@ function Stat({ label, value, of, good }: { label: string; value: number | null;
   return (
     <div className="border-rule px-5 py-4 [&:nth-child(n+2)]:border-l max-sm:[&:nth-child(3)]:border-l-0 max-sm:[&:nth-child(n+3)]:border-t">
       <dt className="text-[12px] text-ink-3">{label}</dt>
-      <dd className={`mt-1 text-[26px] font-semibold leading-none tracking-[-0.02em] tabular ${good ? "text-jade" : ""}`}>
+      <dd className={`mt-1 text-[28px] font-semibold leading-none tracking-[-0.02em] tabular ${good ? "text-jade" : ""}`}>
         {value === null ? <span className="inline-block h-6 w-12 animate-pulse rounded bg-fill align-middle" /> : <Count to={value} />}
         {of !== undefined && value !== null && <span className="text-[15px] font-medium text-ink-3"> / {of}</span>}
       </dd>
@@ -404,17 +402,16 @@ function HowItWorks({ data }: { data: Data | null }) {
   ];
   return (
     <section id="how" className="scroll-mt-20 border-t border-rule py-16">
-      <h2 className="text-[26px] font-semibold tracking-[-0.02em]">How it works</h2>
-      <div className="mt-8 grid gap-5 md:grid-cols-3">
+      <h2 className="text-[28px] font-semibold tracking-[-0.02em]">How it works</h2>
+      <div className="mt-8 grid md:grid-cols-3">
         {items.map((it) => (
-          <article key={it.n} className="flex flex-col rounded-[16px] bg-sheet p-6 shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[var(--shadow-pop)]">
-            <span className="grid h-7 w-7 place-items-center rounded-full bg-accent-soft text-[13px] font-semibold text-accent">{it.n}</span>
-            <h3 className="mt-4 text-[17px] font-semibold">{it.t}</h3>
-            <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">{it.d}</p>
-            <div className="mt-5 rounded-[10px] bg-fill-2 px-4 py-3 text-[13px] leading-relaxed text-ink-2">
-              <span className="mb-1 block text-[11px] font-semibold text-ink-3">From this week&apos;s plan</span>
-              {it.ex ?? <span className="text-ink-3">Loading…</span>}
-            </div>
+          <article key={it.n} className="flex flex-col border-rule py-6 max-md:[&+&]:border-t md:px-7 md:py-1 md:first:pl-0 md:[&+&]:border-l md:last:pr-0">
+            <h3 className="text-[20px] font-semibold tracking-[-0.015em]">{it.t}</h3>
+            <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{it.d}</p>
+            <figure className="mt-5 border-t border-dashed border-rule pt-4 text-[14px] leading-relaxed text-ink">
+              <figcaption className="mb-1.5 text-[12px] font-medium text-ink-3">Live from this week&apos;s plan</figcaption>
+              {it.ex ?? <span className="inline-block h-4 w-3/4 animate-pulse rounded bg-fill align-middle" />}
+            </figure>
           </article>
         ))}
       </div>
@@ -442,7 +439,7 @@ function Decisions({ data }: { data: Data | null }) {
     <section id="decisions" className="scroll-mt-20 border-t border-rule py-16">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-[26px] font-semibold tracking-[-0.02em]">Every Spectra request, decided</h2>
+          <h2 className="text-[28px] font-semibold tracking-[-0.02em]">Every Spectra request, decided</h2>
           <p className="mt-1 text-[15px] text-ink-2">Each one shows where it landed and why. Sign in as a club to make your own.</p>
         </div>
         <div className="seg max-w-full overflow-x-auto" role="tablist">
@@ -457,7 +454,7 @@ function Decisions({ data }: { data: Data | null }) {
         <div className="hidden grid-cols-[1.4fr_1fr_1.1fr_2fr] gap-4 border-b border-rule px-5 py-2.5 text-[12px] font-medium text-ink-3 md:grid">
           <span>Event</span><span>Venue</span><span>When</span><span>Why</span>
         </div>
-        {!data ? <div className="px-5 py-6 text-[14px] text-ink-3">Loading…</div> : shown.map((r) => {
+        {!data ? <div className="space-y-3 px-5 py-6" aria-label="Loading">{[0, 1, 2].map((i) => <div key={i} className="h-4 animate-pulse rounded bg-fill" style={{ width: `${88 - i * 14}%` }} />)}</div> : shown.map((r) => {
           const st = r.decision?.status;
           return (
             <div key={r.request.id} className="grid gap-x-4 gap-y-1 border-b border-rule px-5 py-3.5 transition-colors duration-150 last:border-0 hover:bg-fill-2 md:grid-cols-[1.4fr_1fr_1.1fr_2fr]">
@@ -467,7 +464,7 @@ function Decisions({ data }: { data: Data | null }) {
               </div>
               <div className="text-[14px]">{r.decision?.room_id ? data.rooms[r.decision.room_id]?.name ?? r.decision.room_id : <span className="text-ink-3">None</span>}</div>
               <div className="text-[14px] text-ink-2">
-                <span className={`mr-2 inline-block rounded-full px-2 py-px text-[11px] font-medium ${st === "approved" ? "bg-jade/15 text-jade" : st === "rejected" ? "bg-bad/15 text-bad" : "bg-brass/15 text-brass"}`}>
+                <span className={`mr-2 inline-block rounded-full px-2 py-px text-[12px] font-medium ${st === "approved" ? "bg-jade/15 text-jade" : st === "rejected" ? "bg-bad/15 text-bad" : "bg-brass/15 text-brass"}`}>
                   {st === "approved" ? "Confirmed" : st === "rejected" ? "Declined" : "Other slot"}
                 </span>
                 {r.when?.replace(/\s*\(P\d+(?:-P\d+)?\)/, "") ?? ""}

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from . import db, mirror
 from .checker import Assign
 from .data import load_dataset
 from .model import Ctx
@@ -19,6 +20,15 @@ LOCK = threading.RLock()
 
 def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _snapshot_from_disk(src: Path) -> dict | None:
+    if not src.exists():
+        return None
+    try:
+        return json.loads(src.read_text())
+    except (OSError, ValueError):
+        return None
 
 
 class State:
@@ -81,14 +91,17 @@ class State:
             tmp.replace(target)
         except OSError:
             pass
+        if path is None and db.enabled():
+            # Supabase gets the same snapshot plus queryable tables, written in the background.
+            db.save_async(json.loads(json.dumps(snap)), mirror.build(self))
 
     def load(self, path: Path | None = None) -> bool:
-        src = path or STATE_FILE
-        if not src.exists():
-            return False
-        try:
-            snap = json.loads(src.read_text())
-        except (OSError, ValueError):
+        """Load a snapshot. With DATABASE_URL set, the copy in Supabase wins over the local file."""
+        snap = db.load_snapshot() if path is None else None
+        self.loaded_from = "supabase" if snap is not None else "file"
+        if snap is None:
+            snap = _snapshot_from_disk(path or STATE_FILE)
+        if snap is None:
             return False
         for k, v in snap.items():
             setattr(self, k, v)
@@ -105,4 +118,5 @@ class State:
 SEED_FILE = Path(os.environ.get("SEED_FILE", Path(__file__).resolve().parents[1] / "seed_state.json"))
 
 STATE = State()
-STATE.load()
+if STATE.load() and db.enabled() and STATE.loaded_from == "file" and not db.status()["last_error"]:
+    STATE.save()  # first start against an empty database: copy the local state up

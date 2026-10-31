@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from . import ai
+from . import ai, db
 from .arbiter import CATEGORY_LABEL, Week, decide_bookings, fmt_slot
 from .checker import RULE_TEXT, check_move, check_timetable, soft_score
 from .data import DatasetError, load_dataset, summarize, validate_shape
@@ -35,6 +35,7 @@ async def lifespan(_app: FastAPI):
     if not STATE.assign and os.environ.get("AUTO_GENERATE", "1") != "0":
         run_job("generate", lambda: seed_or_generate("system"), "system")
     yield
+    db.flush()  # finish any Supabase write still in flight
 
 
 app = FastAPI(title="CrunchWeek Engine", version="1.0.0", lifespan=lifespan)
@@ -190,7 +191,7 @@ def health() -> dict:
     import ortools
     return {"status": "ok", "solver": f"ortools {ortools.__version__}", "dataset_id": STATE.data["dataset_id"],
             "timetable": bool(STATE.assign), "job": {k: v for k, v in STATE.job.items() if k != "result"},
-            "ai": ai.ai_enabled()}
+            "ai": ai.ai_enabled(), "database": db.status()}
 
 
 @app.get("/rules")

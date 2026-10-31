@@ -10,9 +10,9 @@ type TT = { sessions: SessionRow[]; events: Event[]; hard_violation_count: numbe
 type Mode = "group" | "faculty" | "room";
 
 const KIND_STYLE: Record<string, string> = {
-  lecture: "bg-riso-lecture border-l-accent",
-  tutorial: "bg-riso-tutorial border-l-lake",
-  lab: "bg-riso-lab border-l-warn",
+  lecture: "blk blk-lecture",
+  tutorial: "blk blk-tutorial",
+  lab: "blk blk-lab",
 };
 
 export default function TimetablePage() {
@@ -52,14 +52,13 @@ export default function TimetablePage() {
   const hours = visible.reduce((a, s) => a + s.duration, 0);
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-end gap-3 border-b border-rule pb-6">
         <div className="mr-auto">
-          <div className="text-[14px] font-semibold text-ink-3">Regular and fest timetables</div>
-          <h1 className="mt-1 font-display text-[32px] font-semibold leading-[1.1] tracking-[-0.018em] sm:text-[44px]">{tt.hard_violation_count === 0 ? <>Everyone has somewhere to be,<br className="hidden sm:block" /> <span className="gradient-text">and nobody is in two places.</span></> : "The week"}</h1>
+          <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.025em] sm:text-[32px]">{tt.hard_violation_count === 0 ? "Everyone has somewhere to be, and nobody is in two places." : "The week"}</h1>
         </div>
         <div className="seg">
           {(["regular", "spectra"] as const).map((w) => (
-            <button key={w} onClick={() => setWeek(w)} className={`px-3 py-1.5 ${week === w ? "bg-accent text-white" : "text-ink-2"}`}>
+            <button key={w} onClick={() => setWeek(w)} className={`px-3 py-1.5 ${week === w ? "bg-accent" : "text-ink-2"}`}>
               {w === "regular" ? "Regular week" : "Spectra week (7)"}
             </button>
           ))}
@@ -68,27 +67,26 @@ export default function TimetablePage() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="seg">
           {(["group", "faculty", "room"] as const).map((m) => (
-            <button key={m} onClick={() => setModeAndKey(m)} className={`px-3 py-1.5 capitalize ${mode === m ? "bg-accent text-white" : "text-ink-2"}`}>{m === "group" ? "Section" : m === "faculty" ? "Teacher" : "Room"}</button>
+            <button key={m} onClick={() => setModeAndKey(m)} className={`px-3 py-1.5 capitalize ${mode === m ? "bg-accent" : "text-ink-2"}`}>{m === "group" ? "Section" : m === "faculty" ? "Teacher" : "Room"}</button>
           ))}
         </div>
         <select value={key} onChange={(e) => setKey(e.target.value)} className="min-w-0 max-w-full rounded-[10px] px-3 py-1.5 text-sm">
           {choices.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
         </select>
         <span className="text-sm text-ink-3">{visible.length} sessions · {hours} hours</span>
-        <span className="ml-auto text-xs text-ink-3">Click any class to see why it sits there.</span>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        <div className="glass overflow-x-auto rounded-[18px] p-2">
+        <div className="glass overflow-x-auto rounded-[16px] p-2">
           <div className="grid min-w-[720px] text-xs [&>div]:border-rule" style={{ gridTemplateColumns: "64px repeat(5, minmax(120px, 1fr))", gridTemplateRows: `36px repeat(5, minmax(56px, auto)) 24px repeat(${lastPeriod - 5}, minmax(56px, auto))` }}>
             <div className="border-b-2 border-r border-b-rule bg-paper-2" style={{ gridRow: 1, gridColumn: 1 }} />
-            {DAYS.map((d, i) => <div key={d} className="smallcaps border-b border-b-rule bg-paper-2 p-2.5 text-ink" style={{ gridRow: 1, gridColumn: i + 2 }}>{DAY_NAME[d]}</div>)}
+            {DAYS.map((d, i) => <div key={d} className="border-b border-b-rule bg-paper-2 p-2.5 text-[13px] font-medium text-ink" style={{ gridRow: 1, gridColumn: i + 2 }}>{DAY_NAME[d]}</div>)}
             {Array.from({ length: lastPeriod }, (_, i) => i + 1).map((p) => (
               <div key={p} className={`border-r border-t p-1 text-ink-3 ${p >= 10 ? "bg-plum-soft" : ""}`} style={{ gridRow: row(p), gridColumn: 1 }}>
-                <div className="font-medium">P{p}</div><div>{fmtHour(periodHour(p))}</div>
+                <div className="font-medium tabular">{fmtHour(periodHour(p))}</div>
               </div>
             ))}
-            <div className="hatch smallcaps border-t text-center leading-6 text-warn" style={{ gridRow: 7, gridColumn: "1 / span 6" }}>Lunch · 1 to 2 pm</div>
+            <div className="border-t bg-fill-2 text-center text-[12px] leading-6 text-ink-3" style={{ gridRow: 7, gridColumn: "1 / span 6" }}>Lunch · 1 to 2 pm</div>
             {DAYS.map((d, i) => Array.from({ length: lastPeriod }, (_, k) => k + 1).map((p) => (
               <div key={`${d}${p}`} className={`border-t ${i ? "border-l" : ""} ${p >= 10 ? "bg-plum-soft" : ""}`} style={{ gridRow: row(p), gridColumn: i + 2 }} />
             )))}
@@ -96,10 +94,10 @@ export default function TimetablePage() {
               <div key={`${day}${start}`} className="z-10 flex flex-col gap-1 p-1" style={{ gridRow: `${row(start)} / span ${dur}`, gridColumn: DAYS.indexOf(day as typeof DAYS[number]) + 2 }}>
                 {items.map((s) => (
                   <button key={s.session_id} onClick={() => setSel(s.session_id)}
-                    className={`h-full rounded-xl border-l-[3px] p-2 text-left text-ink transition duration-300 hover:-translate-y-0.5 hover:shadow-lg ${KIND_STYLE[s.kind] ?? "bg-paper-2"} ${sel === s.session_id ? "outline-2 outline-accent" : ""} ${s.recently_moved ? "outline-2 outline-dashed outline-warn" : ""}`}>
-                    <div className="font-mono text-[11px] font-semibold">{s.course_id} <span className="font-sans font-normal opacity-70">{s.kind}</span></div>
-                    <div className="truncate opacity-80">{s.title}</div>
-                    <div className="opacity-80">{mode === "room" ? s.groups.join(", ") : s.room_id}{mode !== "faculty" && ` · ${s.faculty_id}`}</div>
+                    className={`h-full rounded-[8px] p-2 text-left text-ink transition duration-150 hover:-translate-y-px hover:shadow-[var(--shadow-pop)] ${KIND_STYLE[s.kind] ?? "blk"} ${sel === s.session_id ? "outline-2 outline-accent" : ""} ${s.recently_moved ? "outline-2 outline-dashed outline-warn" : ""}`}>
+                    <div className="text-[12px] font-semibold">{s.course_id} <span className="font-normal text-ink-3">{s.kind}</span></div>
+                    <div className="truncate text-ink-2">{s.title}</div>
+                    <div className="text-ink-3">{mode === "room" ? s.groups.join(", ") : s.room_id}{mode !== "faculty" && ` · ${s.faculty_id}`}</div>
                     {s.basket_slot && <div className="opacity-70">Elective basket {s.basket_slot}</div>}
                     {s.override_by && <div className="font-medium text-plum">Moved this week for {s.override_by}</div>}
                     {s.recently_moved && <div className="font-medium text-warn">Moved by the last change</div>}
@@ -109,9 +107,9 @@ export default function TimetablePage() {
             ))}
             {events.map((e) => (
               <div key={e.request_id} className="z-10 p-1" style={{ gridRow: `${row(e.start_period)} / span ${e.end_period - e.start_period + 1}`, gridColumn: DAYS.indexOf(e.day as typeof DAYS[number]) + 2 }}>
-                <div className="h-full rounded-xl border-l-[3px] border-l-plum bg-riso-event p-2 text-ink">
-                  <div className="font-semibold">{e.request_id} <Badge s={e.status} /></div>
-                  <div>{e.title}</div><div className="opacity-70">{e.requester}</div>
+                <div className="blk blk-event h-full rounded-[8px] p-2 text-ink">
+                  <div className="mb-1"><Badge s={e.status} /></div>
+                  <div className="font-semibold">{e.title}</div><div className="text-ink-3">{e.requester}</div>
                 </div>
               </div>
             ))}
@@ -120,7 +118,13 @@ export default function TimetablePage() {
         </div>
         <SessionPanel key={sel ?? "none"} sid={sel} row={tt.sessions.find((s) => s.session_id === sel)} onClose={() => setSel(null)} />
       </div>
-      <p className="flex flex-wrap gap-3 text-xs text-ink-2"><span className="rounded-full border-l-4 border-l-accent bg-riso-lecture px-3 py-1">lecture</span><span className="rounded-full border-l-4 border-l-lake bg-riso-tutorial px-3 py-1">tutorial</span><span className="rounded-full border-l-4 border-l-warn bg-riso-lab px-3 py-1">lab</span><span className="rounded-full border-l-4 border-l-plum bg-riso-event px-3 py-1">Spectra event</span><span className="rounded-full px-3 py-1 outline-1 outline-dashed outline-warn">moved by the latest change</span></p>
+      <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-ink-2">
+        <li className="flex items-center gap-1.5"><i className="blk blk-lecture h-3 w-3 rounded-[3px]" />Lecture</li>
+        <li className="flex items-center gap-1.5"><i className="blk blk-tutorial h-3 w-3 rounded-[3px]" />Tutorial</li>
+        <li className="flex items-center gap-1.5"><i className="blk blk-lab h-3 w-3 rounded-[3px]" />Lab</li>
+        <li className="flex items-center gap-1.5"><i className="blk blk-event h-3 w-3 rounded-[3px]" />Spectra event</li>
+        <li className="flex items-center gap-1.5"><i className="h-3 w-3 rounded-[3px] outline-1 outline-dashed outline-warn" />Moved by the latest change</li>
+      </ul>
     </div>
   );
 }
@@ -153,7 +157,7 @@ function SessionPanel({ sid, row, onClose }: { sid: string | null; row?: Session
     api<{ options: Option[] }>(`/timetable/options/${sid}`).then((d) => setOpts(d.options)).catch(() => {});
   }, [sid]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!sid || !row) return <Card className="hidden lg:block"><Empty>Click a class to see why it sits there and where else it could go.</Empty></Card>;
+  if (!sid || !row) return <Card className="hidden lg:block"><div className="py-6 text-center"><div className="text-[15px] font-medium">Pick a class</div><p className="mx-auto mt-1 max-w-[30ch] text-[14px] leading-relaxed text-ink-2">Click any class on the grid to see why it sits there, and which other slots and rooms would also work.</p></div></Card>;
   const canMove = user?.role === "admin" || user?.role === "department_coordinator";
   const simple = () => run(async () => setEx(await api<Explain>(`/timetable/explain/${sid}?ai_words=true`)));
   const move = (o: Option) => run(async () => {
@@ -172,11 +176,11 @@ function SessionPanel({ sid, row, onClose }: { sid: string | null; row?: Session
           <div className="font-medium text-ink">{DAY_NAME[row.day]} {fmtHour(periodHour(row.start_period))}, {row.room_id} ({meta?.rooms.find((r) => r.id === row.room_id)?.name})</div>
         </div>
         <ErrorBox error={error} />
-        {msg && <div className="rounded-2xl bg-ok-soft p-3 text-ok">{msg}</div>}
+        {msg && <div className="rounded-[10px] bg-ok-soft p-3 text-ok">{msg}</div>}
         {!ex ? <Spinner label="Working out why…" /> : (
           <div className="space-y-2">
-            <h3 className="font-display font-semibold text-lg">Why here?</h3>
-            {ex.plain ? <p className="rounded-2xl bg-plum-soft p-3 text-plum">{ex.plain.text} <span className="block text-xs opacity-60">({ex.plain.source === "claude" ? "reworded by AI from the engine's facts" : "engine summary"})</span></p> : <p>{ex.summary}</p>}
+            <h3 className="text-[15px] font-semibold">Why here?</h3>
+            {ex.plain ? <p className="rounded-[10px] bg-plum-soft p-3 text-plum">{ex.plain.text} <span className="block text-xs opacity-60">({ex.plain.source === "claude" ? "reworded by AI from the engine's facts" : "engine summary"})</span></p> : <p>{ex.summary}</p>}
             <p className="text-ink-2">{ex.room_reason}.</p>
             {ex.ruled_out.length > 0 && (
               <ul className="list-disc pl-5 text-ink-2">
@@ -188,11 +192,11 @@ function SessionPanel({ sid, row, onClose }: { sid: string | null; row?: Session
           </div>
         )}
         <div>
-          <h3 className="font-display font-semibold text-lg">Where else it could go</h3>
+          <h3 className="text-[15px] font-semibold">Where else it could go</h3>
           {!opts ? <Spinner label="Checking every slot against the rules…" /> : opts.length === 0 ? <p className="text-ink-3">No other placement keeps every rule.</p> : (
             <ul className="mt-2 space-y-1.5">
               {opts.slice(0, 8).map((o) => (
-                <li key={`${o.day}${o.start_period}${o.room_id}`} className="flex items-center gap-2 rounded-2xl bg-fill-2 p-2.5">
+                <li key={`${o.day}${o.start_period}${o.room_id}`} className="flex items-center gap-2 rounded-[10px] bg-fill-2 p-2.5">
                   <div className="flex-1">
                     <div>{DAY_NAME[o.day]} {fmtHour(periodHour(o.start_period))} · {o.room_id}{o.room_only && <span className="ml-1 text-xs text-ok">same time</span>}</div>
                     <div className="text-xs text-ink-3">{o.soft_delta === 0 ? "just as good" : o.soft_delta > 0 ? `${o.soft_delta} more compromise${o.soft_delta === 1 ? "" : "s"}` : `${-o.soft_delta} fewer compromise${o.soft_delta === -1 ? "" : "s"}`}{o.notes.length ? ` · ${o.notes.join("; ")}` : ""}</div>

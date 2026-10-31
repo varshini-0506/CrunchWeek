@@ -35,7 +35,8 @@ flowchart TD
         N[Hinglish rule parser] --> L[Claude API, optional<br/>drafts and rewords only]
         V[validator.py bridge]
     end
-    E --> F[(State snapshot<br/>.state.json + seed_state.json)]
+    E --> F[(Supabase Postgres<br/>state + timetable, bookings, audit)]
+    E --> G[(Local fallback<br/>.state.json + seed_state.json)]
 ```
 
 | Engine module | Job |
@@ -84,13 +85,21 @@ npm run dev
 
 Open http://localhost:3000.
 
+### Database (Supabase)
+
+1. Supabase dashboard > SQL Editor > New query: paste `supabase/migrations/0002_engine_store.sql` and Run. It is safe to run again.
+2. Supabase dashboard > Connect > **Session pooler**: copy the connection string and put it in `engine/.env` as `DATABASE_URL=...`, with `[YOUR-PASSWORD]` replaced by the database password. `engine/.env` is git-ignored.
+3. `pip install -r requirements.txt` again (adds `psycopg`), then start the engine as above.
+
+On start the engine loads its state from Supabase (or, the first time, uploads the seeded timetable). Every change is then saved to `engine_state` and mirrored into tables you can query: `rooms`, `class_sessions`, `timetable_slots`, `room_occupancy`, `venue_requests`, `venue_bookings`, `exam_placements`, `change_requests`, `audit_log`. Postgres itself refuses clashes: one occupant per room per period, one class per teacher and per student group per period, one exam per room per slot, and no overlapping venue bookings (an exclusion constraint). `GET /health` shows the database status, and `select mirror_ok, mirror_error from engine_state` shows the last sync result.
+
 - Tests: `cd engine && python -m pytest -q` (12 tests, including validator parity and the full API flow).
 - Exports: `cd engine && python scripts/make_exports.py` writes `exports/` and the validator reports.
 - AI: set `ANTHROPIC_API_KEY` for the engine to use Claude for parsing and plain-language explanations. Without it (or with `AI_MODE=off`) everything works with the rule-based parser.
 
 ## Known limitations
 
-- Engine state is a JSON snapshot on the engine's disk (`engine/.state.json`); the Supabase schema is in `supabase/migrations/` but the engine does not write to it yet.
+- Without `DATABASE_URL` the engine keeps its state only in `engine/.state.json` on its own disk.
 - Demo login is one click per account; real deployments need institute SSO.
 - New venue requests made in the app are not part of `schedule.json`, so the export stays checkable against the original dataset.
 - Requests made after decisions are published get the best remaining option; they never bump a published decision.

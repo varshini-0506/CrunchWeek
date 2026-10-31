@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/AppShell";
 import { Button, Card, ErrorBox, PageHead, useBusy } from "@/components/ui";
+import { IconArrow } from "@/components/icons";
+import { plain, roomNames } from "@/lib/plain";
 import { api, DAYS, fmtHour, periodHour, type Decision } from "@/lib/api";
 
 type Draft = {
@@ -68,38 +70,41 @@ export default function RequestPage() {
 
   return (
     <div className="space-y-4">
-      <PageHead no="04" kicker="Ask for a room" title={<>Say it like you&apos;d <span className="gradient-text">text a friend.</span></>}>
+      <PageHead title={<>Say it like you&apos;d text a friend.</>}>
         English or Hinglish both work. We turn it into a proper request, show you exactly what would happen, and only then send it to an approver.
       </PageHead>
-      <Card kicker="Your message">
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="e.g. kal shaam 6 se 8 baje robotics demo, 120 log, projector chahiye"
-          className="w-full !rounded-2xl !border-0 !bg-fill-2 p-4 font-display text-2xl font-medium leading-snug placeholder:text-ink-3/70" />
+      <Card title="Your message">
+        <textarea aria-label="Your message" value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="e.g. kal shaam 6 se 8 baje robotics demo, 120 log, projector chahiye"
+          className="w-full !rounded-[12px] !border-0 !bg-fill-2 p-4 text-[17px] leading-relaxed placeholder:text-ink-3/70" />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <Button onClick={read} disabled={busy || !text.trim()}>Read it →</Button>
+          <Button onClick={read} disabled={busy || !text.trim()}>Read it<IconArrow className="h-4 w-4" /></Button>
           <Button kind="secondary" onClick={startBlank}>Use a form instead</Button>
           <label className="ml-auto text-xs text-ink-3">Counting “kal” from
             <select value={today} onChange={(e) => setToday(e.target.value)} className="ml-1 rounded-[10px] px-1 py-0.5">{DAYS.map((d) => <option key={d}>{d}</option>)}</select>
           </label>
         </div>
-        <div className="mt-3 flex flex-wrap gap-1">
-          {EXAMPLES.map((e) => <button key={e} onClick={() => setText(e)} className="rounded-full bg-fill px-3.5 py-1.5 text-left text-[13px] text-ink transition hover:bg-accent hover:text-white">{e}</button>)}
+        <div className="mt-4 border-t border-rule pt-3">
+          <div className="mb-2 text-[12px] font-medium text-ink-3">Or start from one of these</div>
+          <div className="flex flex-wrap gap-1.5">
+            {EXAMPLES.map((e) => <button key={e} onClick={() => setText(e)} className={`rounded-full px-3.5 py-1.5 text-left text-[13px] transition-colors duration-150 ${text === e ? "bg-accent-soft text-ink shadow-[inset_0_0_0_1px_var(--blue)]" : "bg-fill text-ink-2 hover:bg-fill/60 hover:text-ink"}`}>{e}</button>)}
+          </div>
         </div>
       </Card>
       <ErrorBox error={error} />
 
       {parsed && (parsed.assumptions.length > 0 || parsed.follow_up.length > 0 || parsed.flags.length > 0) && (
-        <Card kicker={parsed.parser === "claude" ? "Read by the AI helper, checked by the planner" : "Read by the planner"} title="Here's how I read it">
-          <ul className="space-y-1 text-sm">
-            {parsed.assumptions.map((a) => <li key={a} className="text-ink-2">• Assumed: {a}</li>)}
-            {parsed.follow_up.map((a) => <li key={a} className="text-lake">? {a}</li>)}
-            {parsed.flags.map((a) => <li key={a} className="text-warn">! {a}</li>)}
+        <Card title="Here's how I read it" note={parsed.parser === "claude" ? "Read by the AI helper, checked by the planner" : "Read by the planner"}>
+          <ul className="space-y-1.5 text-sm">
+            {parsed.assumptions.map((a) => <li key={a} className="text-ink-2"><span className="font-medium text-ink">Assumed:</span> {a}</li>)}
+            {parsed.follow_up.map((a) => <li key={a} className="text-ink-2"><span className="font-medium text-lake">Worth checking:</span> {a}</li>)}
+            {parsed.flags.map((a) => <li key={a} className="text-ink-2"><span className="font-medium text-warn">Heads-up:</span> {a}</li>)}
           </ul>
         </Card>
       )}
 
       {draft && (
         <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-          <Card kicker="Edit anything" title="The request">
+          <Card title="The request" note="Change anything that I read wrong.">
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <label className="sm:col-span-2">Title<input value={draft.title} onChange={(e) => set({ title: e.target.value })} className="mt-1 w-full rounded-[10px] px-2 py-1.5" /></label>
               <label>Attendance<input type="number" min={1} value={draft.attendance ?? ""} onChange={(e) => set({ attendance: e.target.value ? +e.target.value : null })} className="mt-1 w-full rounded-[10px] px-2 py-1.5" /></label>
@@ -138,16 +143,16 @@ export default function RequestPage() {
               </div>
             </div>
           </Card>
-          <Card kicker="Live preview" title="If you sent it now" className="lg:sticky lg:top-24 lg:self-start">
+          <Card title="If you sent it now" note="What the arbiter would decide right now. Nothing is booked yet." className="lg:sticky lg:top-24 lg:self-start">
             {!preview ? <p className="text-sm text-ink-3">Checking…</p> : !preview.ok ? (
-              <ul className="text-sm text-bad">{preview.errors?.map((e) => <li key={e}>• {e}</li>)}</ul>
+              <ul className="list-disc space-y-0.5 pl-4 text-sm text-bad">{preview.errors?.map((e) => <li key={e}>{e}</li>)}</ul>
             ) : (
               <div className="space-y-2 text-sm">
                 <span className={`stamp ${preview.decision!.status === "approved" ? "text-ok" : preview.decision!.status === "rejected" ? "text-bad" : "text-warn"}`}>{preview.decision!.status === "approved" ? "You would get it" : preview.decision!.status === "rejected" ? "Can't be hosted" : "A nearby slot"}</span>
                 {preview.when && <div className="font-medium">{preview.when}, {preview.decision!.room_id}</div>}
-                <p className="text-ink-2">{preview.decision!.reason}</p>
+                <p className="text-ink-2">{plain(preview.decision!.reason, roomNames(meta?.rooms), false)}</p>
                 <p className="text-xs text-ink-3">Handled as a {preview.category_label?.toLowerCase()}. Rooms already promised to others stay promised; you get the best of what is left.</p>
-                {preview.explain?.notes?.map((n) => <p key={n} className="text-xs text-warn">• {n}</p>)}
+                {preview.explain?.notes?.map((n) => <p key={n} className="text-xs text-warn">{n}</p>)}
               </div>
             )}
             <div className="mt-4">

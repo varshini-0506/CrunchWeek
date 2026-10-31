@@ -41,13 +41,13 @@ export default function ChangesPage() {
 
   return (
     <div className="space-y-4">
-      <PageHead no="05" kicker="Changes" title={<>Plans change. <span className="gradient-text">The week bends, it doesn&apos;t break.</span></>}>
+      <PageHead title={<>Plans change. The week bends, it doesn&apos;t break.</>}>
         When a teacher is away or a room closes, the planner moves as few classes as it can, swaps rooms before times, and shows you the before and after. Nothing is published until an admin signs off.
       </PageHead>
       <ErrorBox error={error} />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card kicker="An absence" title={user?.role === "faculty" ? "I can't teach…" : "A teacher can't make it"}>
+        <Card note="Describe the absence in English or Hinglish." title={user?.role === "faculty" ? "I can't teach…" : "A teacher can't make it"}>
           <div className="space-y-2 text-sm">
             {user?.role !== "faculty" && (
               <select value={fid} onChange={(e) => setFid(e.target.value)} className="w-full rounded-[10px] px-3 py-2">
@@ -68,7 +68,7 @@ export default function ChangesPage() {
           </div>
         </Card>
         {(isAdmin || user?.role === "department_coordinator") && (
-          <Card kicker="Official format" title="A change file" actions={<Button small kind="ghost" onClick={loadSample}>Use the sample</Button>}>
+          <Card title="A change file" note="The organisers' JSON format, for room closures and bulk changes." actions={<Button small kind="ghost" onClick={loadSample}>Use the sample</Button>}>
             <textarea value={json} onChange={(e) => setJson(e.target.value)} rows={7} placeholder='{"changes": [{"type": "room_unavailable", ...}]}' className="w-full rounded-[10px] p-3 font-mono text-xs" />
             <div className="mt-2"><Button disabled={busy || running || !json.trim()} onClick={previewJson}>Find the gentlest fix</Button></div>
           </Card>
@@ -78,7 +78,7 @@ export default function ChangesPage() {
       {running && status?.job.kind === "repair" && <Card><Spinner label="Re-solving with the fewest moves…" /></Card>}
 
       <h2 className="px-1 text-[13px] font-semibold text-ink-2">Waiting for sign-off</h2>
-      {!list ? <Spinner /> : list.pending.length === 0 ? <Empty>Nothing waiting for sign-off.</Empty> : list.pending.map((c) => (
+      {!list ? <Spinner /> : list.pending.length === 0 ? <Empty title="Nothing waiting for sign-off">Report an absence or load a change file above. The planner works out the smallest fix, and it waits here until an admin publishes it.</Empty> : list.pending.map((c) => (
         <ChangeCard key={c.id} c={c} actions={isAdmin && (
           <>
             {c.status === "proposed" && <Button disabled={busy} onClick={() => act(`/changes/${c.id}/approve`)}>Sign off and publish</Button>}
@@ -105,10 +105,10 @@ function slot(s: Slot) {
 
 function ChangeCard({ c, actions }: { c: Change; actions?: React.ReactNode }) {
   return (
-    <Card title={<span className="flex flex-wrap items-center gap-2"><span className="font-mono text-xs text-ink-3">{c.id}</span>{c.note ?? c.kind.replace("_", " ")} <Badge s={c.status} /></span>} actions={actions}>
+    <Card title={<span className="flex flex-wrap items-center gap-2">{c.note ?? c.kind.replace("_", " ")} <Badge s={c.status} /></span>} actions={actions}>
       <div className="space-y-2 text-sm">
         <div className="text-xs text-ink-3">by {c.by} · {new Date(c.at).toLocaleString()}{c.approved_by && ` · approved by ${c.approved_by}`}{c.solver && ` · worked out in ${c.solver.seconds}s${c.solver.status === "OPTIMAL" ? " (proven fewest moves)" : ""}`}</div>
-        {c.changes.length > 0 && <ul className="text-xs text-ink-2">{c.changes.map((ch, i) => <li key={i}>• {describe(ch)}</li>)}</ul>}
+        {c.changes.length > 0 && <ul className="list-disc space-y-0.5 pl-4 text-xs text-ink-2 marker:text-ink-3">{c.changes.map((ch, i) => <li key={i}>{describe(ch)}</li>)}</ul>}
         {c.broken_before_fix && c.broken_before_fix.length > 0 && (
           <details className="text-xs"><summary className="cursor-pointer text-warn">{c.broken_before_fix.length} clashes this would cause if we did nothing</summary>
             <ul className="mt-1 text-ink-2">{c.broken_before_fix.slice(0, 12).map((v, i) => <li key={i}>[{v.rule}] {v.detail}</li>)}</ul>
@@ -125,7 +125,7 @@ function ChangeCard({ c, actions }: { c: Change; actions?: React.ReactNode }) {
             <div className="flex flex-wrap gap-3">
               <span className="font-medium">{c.diff.sessions_moved} classes move</span>
               <span className="text-ink-2">{c.diff.time_changed} change time · {c.diff.room_only_changed} only change room</span>
-              {c.soft_before !== undefined && <span className="text-ink-2">compromises {c.soft_before} → {c.soft_after}</span>}
+              {c.soft_before !== undefined && <span className="text-ink-2">compromises {c.soft_before} before, {c.soft_after} after</span>}
             </div>
             {c.diff.moved.length > 0 && (
               <div className="overflow-x-auto">

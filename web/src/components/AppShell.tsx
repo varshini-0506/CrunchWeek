@@ -97,6 +97,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => clearInterval(t);
   }, [running, refresh]);
 
+  // After moving to another page, let go of focus so the menu that was used closes.
+  useEffect(() => { (document.activeElement as HTMLElement | null)?.blur?.(); }, [pathname]);
+
   // ⌘K / Ctrl+K opens Spotlight anywhere; Esc closes whatever is open.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -116,72 +119,34 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   };
   const links = NAV.filter((n) => !n.roles || n.roles.includes(user.role));
-  const groups = [...new Set(links.map((l) => l.group))];
   const here = links.find((l) => l.href === pathname);
   const initials = user.name.replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("");
   const badge = (href: string) => (href === "/spectra" ? status?.pending_bookings : href === "/changes" ? status?.pending_changes : 0) || 0;
 
   return (
     <AppCtx.Provider value={{ user, meta, status, version, refresh, engineDown }}>
-      <div className="min-h-screen lg:grid lg:grid-cols-[248px_1fr]">
-        {/* macOS-style sidebar (source list) */}
-        <aside className="material sticky top-0 hidden h-screen flex-col border-r border-rule px-3 pb-3 pt-5 lg:flex">
-          <Link href="/" className="flex items-center gap-2.5 px-2.5">
-            <AppIcon />
-            <div className="leading-tight"><div className="text-[15px] font-semibold">CrunchWeek</div><div className="text-[11px] text-ink-3">Chilika Inst. of Technology</div></div>
-          </Link>
-          <button onClick={() => setSpot(true)} className="mt-5 flex items-center gap-2 rounded-lg bg-fill px-2.5 py-1.5 text-[13px] text-ink-3 transition hover:text-ink">
-            <IconSearch className="h-[15px] w-[15px]" /> Search <kbd className="ml-auto font-sans text-[11px]">⌘K</kbd>
-          </button>
-          <nav className="mt-3 flex-1 overflow-y-auto">
-            {groups.map((g) => (
-              <div key={g} className="mt-3">
-                <div className="px-2.5 pb-1 text-[11px] font-semibold text-ink-3">{g}</div>
-                {links.filter((l) => l.group === g).map((n) => {
-                  const on = pathname === n.href;
-                  const I = n.icon;
-                  const b = badge(n.href);
-                  return (
-                    <Link key={n.href} href={n.href} className={`flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] transition-colors ${on ? "bg-fill font-medium text-ink" : "text-ink hover:bg-fill-2"}`}>
-                      <I className="h-[17px] w-[17px] text-accent" />
-                      <span className="flex-1">{n.label}</span>
-                      {b > 0 && <span className="text-[12px] font-medium text-ink-3 tabular">{b}</span>}
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
-          </nav>
-          <div className="relative">
-            <button onClick={() => setMe(!me)} className="flex w-full items-center gap-2.5 rounded-xl p-2 text-left transition hover:bg-fill-2">
-              <Avatar initials={initials} />
-              <span className="min-w-0 flex-1 leading-tight"><span className="block truncate text-[13px] font-medium">{user.name}</span><span className="block text-[11px] text-ink-3">{ROLE_LABEL[user.role]}</span></span>
-            </button>
-            {me && <Account user={user} ai={!!status?.ai} onSignOut={signOut} onClose={() => setMe(false)} className="bottom-14 left-0" />}
-          </div>
-        </aside>
-
-        <div className="min-w-0">
-          {/* Toolbar */}
-          <header className="material sticky top-0 z-30 border-b border-rule">
-            <div className="mx-auto grid h-[52px] max-w-[1180px] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:px-8">
-              <div className="flex min-w-0 items-center gap-2">
-                <Link href="/" className="lg:hidden"><AppIcon small /></Link>
-                <span className="truncate text-[15px] font-semibold">{here?.label ?? ""}</span>
-              </div>
+      <div className="min-h-screen">
+        {/* Top bar: logo, status and account, with the page row underneath. */}
+        <header className="material sticky top-0 z-30 border-b border-rule">
+          <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-3 px-4 sm:px-8">
+            <Link href="/" className="group/logo flex items-center gap-2.5">
+              <span className="transition-transform duration-500 [transition-timing-function:var(--ease-spring)] group-hover/logo:rotate-[-8deg] group-hover/logo:scale-110"><AppIcon /></span>
+              <span className="hidden leading-tight sm:block"><span className="block text-[15px] font-semibold tracking-[-0.01em]">CrunchWeek</span><span className="hidden text-[12px] text-ink-3 xl:block">Chilika Institute of Technology</span></span>
+            </Link>
+            <span className="truncate text-[15px] font-semibold sm:hidden">{here?.label ?? ""}</span>
+            <div className="ml-auto flex items-center gap-2">
               <Island status={status} engineDown={engineDown} />
-              <div className="flex items-center justify-end gap-2">
-                <button onClick={() => setSpot(true)} className="grid h-8 w-8 place-items-center rounded-full text-ink-2 transition hover:bg-fill lg:hidden" aria-label="Search"><IconSearch className="h-[18px] w-[18px]" /></button>
-                <div className="relative lg:hidden">
-                  <button onClick={() => setMe(!me)} aria-label="Account"><Avatar initials={initials} /></button>
-                  {me && <Account user={user} ai={!!status?.ai} onSignOut={signOut} onClose={() => setMe(false)} className="right-0 top-11" />}
-                </div>
+              <button onClick={() => setSpot(true)} className="grid h-8 w-8 place-items-center rounded-full text-ink-2 transition hover:bg-fill lg:hidden" aria-label="Search"><IconSearch className="h-[18px] w-[18px]" /></button>
+              <div className="relative">
+                <button onClick={() => setMe(!me)} aria-label="Account" className="flex items-center gap-2 rounded-full transition hover:opacity-90 active:scale-95"><Avatar initials={initials} /></button>
+                {me && <Account user={user} ai={!!status?.ai} onSignOut={signOut} onClose={() => setMe(false)} className="right-0 top-11" />}
               </div>
             </div>
-          </header>
+          </div>
+          <NavRow links={links} pathname={pathname} badge={badge} onSearch={() => setSpot(true)} />
+        </header>
 
-          <main key={pathname} className="rise mx-auto max-w-[1180px] px-4 pb-28 pt-8 sm:px-8 lg:pb-16 lg:pt-10">{children}</main>
-        </div>
+        <main key={pathname} className="rise mx-auto max-w-[1280px] px-4 pb-28 pt-8 sm:px-8 lg:pb-16 lg:pt-10">{children}</main>
 
         {/* iOS tab bar */}
         <nav className="material fixed inset-x-0 bottom-0 z-40 border-t border-rule pb-[env(safe-area-inset-bottom)] lg:hidden">
@@ -190,13 +155,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               const on = pathname === n.href;
               const I = n.icon;
               return (
-                <Link key={n.href} href={n.href} className={`flex h-[52px] flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${on ? "text-accent" : "text-ink-3"}`}>
-                  <span className="relative"><I className="h-6 w-6" />{badge(n.href) > 0 && <span className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[10px] text-white">{badge(n.href)}</span>}</span>
+                <Link key={n.href} href={n.href} className={`flex h-[52px] flex-col items-center justify-center gap-0.5 text-[12px] font-medium ${on ? "text-accent" : "text-ink-3"}`}>
+                  <span className="relative"><I className="h-6 w-6" />{badge(n.href) > 0 && <span className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[12px] text-white">{badge(n.href)}</span>}</span>
                   {n.short}
                 </Link>
               );
             })}
-            <button onClick={() => setMore(true)} className={`flex h-[52px] flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${!TABS.includes(pathname) ? "text-accent" : "text-ink-3"}`}>
+            <button onClick={() => setMore(true)} className={`flex h-[52px] flex-col items-center justify-center gap-0.5 text-[12px] font-medium ${!TABS.includes(pathname) ? "text-accent" : "text-ink-3"}`}>
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
               More
             </button>
@@ -213,7 +178,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   return (
                     <Link key={n.href} href={n.href} onClick={() => setMore(false)} className="flex items-center gap-3 px-4 py-3">
                       <I className="h-[22px] w-[22px] text-accent" />
-                      <span className="flex-1"><span className="block text-[16px]">{n.label}</span><span className="block text-[12px] text-ink-3">{n.note}</span></span>
+                      <span className="flex-1"><span className="block text-[15px]">{n.label}</span><span className="block text-[12px] text-ink-3">{n.note}</span></span>
                       <Chevron />
                     </Link>
                   );
@@ -229,16 +194,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** Two rounded squares, the second offset: a booking that found its own slot. */
 export function AppIcon({ small }: { small?: boolean }) {
+  const box = small ? "h-[15px] w-[15px]" : "h-4 w-4";
   return (
-    <span className={`grid place-items-center bg-gradient-to-b from-[#3a8dff] to-[#0060df] text-white shadow-[0_1px_2px_rgba(0,0,0,.2),inset_0_0.5px_0_rgba(255,255,255,.35)] ${small ? "h-7 w-7 rounded-[7px]" : "h-8 w-8 rounded-[8px]"}`}>
-      <svg viewBox="0 0 24 24" className={small ? "h-4 w-4" : "h-[18px] w-[18px]"} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round"><path d="M6 7.5h5M6 12h9M6 16.5h12" /></svg>
+    <span className={`relative block shrink-0 ${small ? "h-[22px] w-[22px]" : "h-6 w-6"}`} aria-hidden>
+      <span className={`absolute left-0 top-0 rounded-[4px] border-[1.5px] border-ink ${box}`} />
+      <span className={`absolute bottom-0 right-0 rounded-[4px] bg-accent ${box}`} />
     </span>
   );
 }
 
 function Avatar({ initials }: { initials: string }) {
-  return <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-gradient-to-b from-[#a1a1a6] to-[#6e6e73] text-[12px] font-semibold text-white">{initials}</span>;
+  return <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-semibold text-white">{initials}</span>;
 }
 
 export function Chevron() {
@@ -288,19 +256,19 @@ function Account({ user, ai, onSignOut, onClose, className }: { user: User; ai: 
 function Island({ status, engineDown }: { status: Status | null; engineDown: string | null }) {
   const running = status?.job?.status === "running";
   const [open, setOpen] = useState(false);
-  let tone = "bg-[#30d158]";
+  let tone = "bg-jade";
   let text = "Connecting";
-  if (engineDown) { tone = "bg-[#ff453a]"; text = "Engine offline"; }
-  else if (running) { tone = "bg-[#ff9f0a]"; text = status?.job.kind === "repair" ? "Finding the gentlest fix" : "Planning the week"; }
+  if (engineDown) { tone = "bg-bad"; text = "Engine offline"; }
+  else if (running) { tone = "bg-brass"; text = status?.job.kind === "repair" ? "Finding the gentlest fix" : "Planning the week"; }
   else if (status?.timetable) {
     const waiting = status.pending_bookings + status.pending_changes;
     text = waiting ? `${waiting} waiting for review` : "All clear";
-    if (waiting) tone = "bg-[#0a84ff]";
+    if (waiting) tone = "bg-accent";
   }
   return (
     <div className="relative">
       <button onClick={() => setOpen(!open)}
-        className={`glass-dark relative flex h-8 items-center gap-2 overflow-hidden rounded-full text-[12.5px] font-medium transition-all duration-500 [transition-timing-function:var(--ease-spring)] ${running ? "pl-3 pr-4" : "pl-3 pr-3.5"}`}>
+        className={`relative flex h-8 items-center gap-2 overflow-hidden rounded-full bg-sheet text-[13px] font-medium text-ink-2 shadow-[var(--shadow-card)] transition-all duration-300 hover:text-ink ${running ? "pl-3 pr-4" : "pl-3 pr-3.5"}`}>
         {running && <span className="shimmer absolute inset-0" />}
         <span className="relative flex h-2 w-2">
           {(running || engineDown) && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${tone} opacity-70`} />}
@@ -311,10 +279,10 @@ function Island({ status, engineDown }: { status: Status | null; engineDown: str
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="pop absolute left-1/2 top-10 z-50 w-[min(84vw,340px)] -translate-x-1/2 rounded-[22px] bg-black p-4 text-[13px] leading-relaxed text-white/75 shadow-2xl">
-            {engineDown ? <>The planning engine isn&apos;t answering. Start it with <code className="font-mono text-white">uvicorn app.main:app --port 8000</code> in the engine folder.</>
+          <div className="pop absolute right-0 top-10 z-50 w-[min(84vw,340px)] rounded-[14px] bg-sheet p-4 text-[13px] leading-relaxed text-ink-2 shadow-[var(--shadow-pop)]">
+            {engineDown ? <>The planning engine isn&apos;t answering. Start it with <code className="font-mono text-ink">uvicorn app.main:app --port 8000</code> in the engine folder.</>
               : running ? (status?.job.kind === "repair" ? "Moving as few classes as possible around the change. Every page updates by itself." : "Placing classes, midsems and Spectra venues. About a minute; every page fills in by itself.")
-              : status?.timetable ? <><span className="block text-[15px] font-semibold text-white">{status.sessions} classes · {status.exams} midsem papers</span>Built in {status.solve.seconds}s and proven the best possible. {status.approved} Spectra events confirmed; {status.applied_changes} change{status.applied_changes === 1 ? "" : "s"} published since.</>
+              : status?.timetable ? <><span className="block text-[15px] font-semibold text-ink">{status.sessions} classes · {status.exams} midsem papers</span>Planned in {Math.round(status.solve.seconds ?? 0)} seconds, the best plan possible under the rules. {status.approved} Spectra events confirmed; {status.applied_changes} change{status.applied_changes === 1 ? "" : "s"} published since.</>
               : "Waiting for the first plan."}
           </div>
         </>
@@ -354,7 +322,7 @@ function Spotlight({ links, isAdmin, busy, onClose, refresh }: { links: Nav[]; i
               if (e.key === "ArrowUp") { e.preventDefault(); setI((v) => Math.max(v - 1, 0)); }
               if (e.key === "Enter") pick(items[i]);
             }}
-            placeholder="Spotlight Search" className="flex-1 !bg-transparent text-[22px] font-light !shadow-none outline-none" />
+            placeholder="Search pages and actions" className="flex-1 !bg-transparent text-[17px] !shadow-none outline-none" />
         </div>
         <ul className="max-h-[50vh] overflow-y-auto border-t border-rule p-1.5">
           {items.length === 0 && <li className="p-6 text-center text-ink-3">No results for “{q}”</li>}
@@ -364,13 +332,114 @@ function Spotlight({ links, isAdmin, busy, onClose, refresh }: { links: Nav[]; i
               <li key={x.label}>
                 <button onMouseMove={() => setI(k)} onClick={() => pick(x)} className={`flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left ${k === i ? "bg-accent text-white" : ""}`}>
                   <I className={`h-5 w-5 ${k === i ? "text-white" : "text-accent"}`} />
-                  <span className="flex-1 text-[14px]">{x.label} <span className={k === i ? "text-white/70" : "text-ink-3"}>— {x.note}</span></span>
-                  <span className={`text-[11px] ${k === i ? "text-white/70" : "text-ink-3"}`}>{x.kind}</span>
+                  <span className="flex-1 text-[14px]">{x.label} <span className={k === i ? "text-white/70" : "text-ink-3"}>· {x.note}</span></span>
+                  <span className={`text-[12px] ${k === i ? "text-white/70" : "text-ink-3"}`}>{x.kind}</span>
                 </button>
               </li>
             );
           })}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+/** Every page in one row. Under the cursor the items swell like a magnifying glass passing over them:
+    the one you point at grows most, its neighbours a little, and the rest stay put. */
+const ANIM: Record<string, string> = {
+  "/": "spin", "/timetable": "flip", "/exams": "wiggle", "/spectra": "twinkle", "/request": "bob",
+  "/changes": "swap", "/insights": "beat", "/exports": "lift", "/audit": "tilt",
+};
+
+/** The page row: the sidebar's groups laid out in one line. A soft pill glides to whatever
+ *  you point at and settles back on the current page; each icon has its own small gesture. */
+function NavRow({ links, pathname, badge, onSearch }: { links: Nav[]; pathname: string; badge: (href: string) => number; onSearch: () => void }) {
+  const row = useRef<HTMLDivElement>(null);
+  const items = useRef<Record<string, HTMLAnchorElement | null>>({});
+  const [pill, setPill] = useState<{ x: number; w: number; on: boolean } | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
+  const groups = [...new Set(links.map((l) => l.group))];
+
+  const zoom = useRef<Record<string, number>>({});
+  const hoverRef = useRef<string | null>(null);
+  useEffect(() => { hoverRef.current = hover; }, [hover]);
+  const raf = useRef(0);
+
+  // Pill geometry comes from layout boxes (offsetLeft/Width), scaled by the item's current
+  // magnification, so it tracks the lens without waiting for transitions.
+  const measure = useCallback((href: string | null) => {
+    const el = href ? items.current[href] : null;
+    if (!el) { setPill(null); return; }
+    const z = zoom.current[href!] ?? 1;
+    const w = el.offsetWidth * z;
+    setPill({ x: el.offsetLeft - (w - el.offsetWidth) / 2, w, on: href === pathname });
+  }, [pathname]);
+
+  // Dock-style lens: every link swells by how close the pointer is, with soft smoothstep edges,
+  // and neighbours part to make room.
+  const lens = useCallback((x: number | null) => {
+    cancelAnimationFrame(raf.current);
+    raf.current = requestAnimationFrame(() => {
+      const reach = 130, grow = 0.32;
+      for (const [href, el] of Object.entries(items.current)) {
+        if (!el) continue;
+        let k = 0;
+        if (x !== null) {
+          const r = el.getBoundingClientRect();
+          k = Math.max(0, 1 - Math.abs(x - (r.left + r.width / 2)) / reach);
+          k = k * k * (3 - 2 * k);
+        }
+        const z = 1 + grow * k;
+        zoom.current[href] = z;
+        el.style.setProperty("--z", z.toFixed(3));
+        el.style.setProperty("--spread", `${((z - 1) * el.offsetWidth * 0.5).toFixed(1)}px`);
+      }
+      measure(hoverRef.current ?? pathname);
+    });
+  }, [measure, pathname]);
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
+
+  useEffect(() => {
+    const t = setTimeout(() => measure(hover ?? pathname), 0);
+    const onResize = () => measure(hover ?? pathname);
+    window.addEventListener("resize", onResize);
+    return () => { clearTimeout(t); window.removeEventListener("resize", onResize); };
+  }, [hover, pathname, measure]);
+
+  return (
+    <div className="mx-auto hidden max-w-[1280px] px-4 pb-1 sm:px-8 lg:block">
+      <div ref={row} onPointerMove={(e) => lens(e.clientX)} onPointerLeave={() => { setHover(null); lens(null); }} className="navrow relative flex items-center gap-1 pb-1.5 pt-1">
+        {pill && (
+          <span aria-hidden className={`navpill absolute top-1 h-9 rounded-[10px] ${pill.on && !hover ? "bg-fill" : "bg-fill-2"}`}
+            style={{ transform: `translateX(${pill.x}px)`, width: pill.w }} />
+        )}
+        <button onClick={onSearch} onPointerEnter={() => setHover(null)} onTransitionEnd={() => measure(hover ?? pathname)} className="navsearch group relative z-[1] mr-2 flex h-9 items-center gap-2 rounded-[10px] bg-fill px-3 text-[13px] text-ink-3 transition-colors hover:text-ink">
+          <IconSearch className="h-[15px] w-[15px] transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110" />
+          <span>Search</span>
+          <kbd className="navkbd overflow-hidden whitespace-nowrap rounded bg-sheet px-1.5 font-sans text-[11px] text-ink-3 shadow-[var(--shadow-card)]">Ctrl K</kbd>
+        </button>
+        {groups.map((g, gi) => (
+          <div key={g} className="flex items-center gap-1">
+            {gi > 0 && <span aria-hidden className="mx-1.5 h-5 w-px bg-rule" />}
+            <span className="mr-1 hidden text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3/80 2xl:inline">{g}</span>
+            {links.filter((l) => l.group === g).map((n) => {
+              const on = pathname === n.href;
+              const I = n.icon;
+              const b = badge(n.href);
+              return (
+                <Link key={n.href} href={n.href} ref={(el) => { items.current[n.href] = el; }}
+                  onPointerEnter={() => setHover(n.href)} onFocus={(e) => { setHover(n.href); const r = e.currentTarget.getBoundingClientRect(); lens(r.left + r.width / 2); }} onBlur={() => { setHover(null); lens(null); }}
+                  aria-current={on ? "page" : undefined} data-anim={ANIM[n.href]}
+                  className={`navitem group relative flex h-9 items-center gap-2 rounded-[10px] px-2.5 text-[13.5px] ${on ? "font-semibold text-ink" : "text-ink-2 hover:text-ink"}`}>
+                  <span className="navicon text-accent"><I className="h-[17px] w-[17px]" /></span>
+                  <span className="whitespace-nowrap"><span className="2xl:hidden">{n.short}</span><span className="hidden 2xl:inline">{n.label}</span></span>
+                  {b > 0 && <span key={b} className="navbadge grid h-[18px] min-w-[18px] place-items-center rounded-full bg-bad px-1 text-[11px] font-semibold text-white">{b}</span>}
+                  <span aria-hidden className={`navdot absolute -bottom-[5px] left-1/2 h-[3px] -translate-x-1/2 rounded-full bg-accent ${on ? "w-4 opacity-100" : "w-0 opacity-0"}`} />
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Chevron, useApp } from "@/components/AppShell";
-import { Button, Card, CountUp, ErrorBox, PageHead, Ring, Spinner, useBusy } from "@/components/ui";
+import { Button, Card, ErrorBox, PageHead, Spinner, useBusy } from "@/components/ui";
 import { IconCheck } from "@/components/icons";
 import { api } from "@/lib/api";
 
@@ -24,12 +24,19 @@ export default function Today() {
   const { user, status, refresh, version } = useApp();
   const [val, setVal] = useState<Validation | null>(null);
   const [soft, setSoft] = useState<Record<string, number> | null>(null);
+  const [fest, setFest] = useState<{ hosted: number; nearby: number; declined: number; total: number } | null>(null);
   const { busy, error, run } = useBusy();
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     if (!status?.timetable) return;
     api<{ soft: Record<string, number> }>("/utilisation").then((u) => setSoft(u.soft)).catch(() => {});
+    // Withdrawn requests don't count as declined.
+    api<{ rows: { state: string; decision: { status: string } | null }[] }>("/bookings").then((b) => {
+      const live = b.rows.filter((r) => r.state === "decided");
+      const n = (st: string) => live.filter((r) => r.decision?.status === st).length;
+      setFest({ hosted: n("approved") + n("alternative_offered"), nearby: n("alternative_offered"), declined: n("rejected"), total: live.length });
+    }).catch(() => {});
     if (isAdmin) api<Validation>("/validate").then(setVal).catch(() => setVal(null));
   }, [status?.timetable, version, isAdmin]);
 
@@ -45,7 +52,7 @@ export default function Today() {
 
   return (
     <div>
-      <PageHead kicker={date} title={set ? <>The week is set. <span className="gradient-text">Nothing collides.</span></> : <>Planning the week<span className="gradient-text">…</span></>}
+      <PageHead meta={date} title={set ? <>The week is set. Nothing collides.</> : <>Planning the week…</>}
         actions={isAdmin && (
           <>
             <Button kind="secondary" disabled={busy || status.job.status === "running"} onClick={() => start("/reset")}>Reset demo</Button>
@@ -57,43 +64,30 @@ export default function Today() {
       <ErrorBox error={error} />
 
       {!status.timetable ? <Card><Spinner label="The engine is building the first plan. This page fills in by itself." /></Card> : (
-        <div className="stagger grid gap-5 lg:grid-cols-12">
+        <div className="grid gap-5 lg:grid-cols-12">
           {(user?.role === "faculty" || user?.role === "club") && <div className="lg:col-span-12"><MyCard /></div>}
 
-          {/* Activity-ring summary, drawn like Fitness: always on black. */}
-          <section className="relative overflow-hidden rounded-[22px] bg-[var(--fitness)] p-6 text-white lg:col-span-7">
-            <div className="text-[13px] font-semibold text-white/60">Timetable health</div>
-            <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-5">
-              <Ring value={status.sessions} max={total} size={168} stroke={18} tone="accent">
-                <Ring value={clashFree ? 1 : 0.5} max={1} size={128} stroke={18} tone="ok">
-                  <Ring value={status.exam_penalty === 0 ? 1 : 0.6} max={1} size={88} stroke={18} tone="lake" />
-                </Ring>
-              </Ring>
-              <dl className="space-y-3.5">
-                <Metric color="text-[#fa114f]" label="Classes placed" value={<><CountUp to={status.sessions} /><span className="text-[0.55em] font-medium">/{total}</span></>} />
-                <Metric color="text-[#a6ff00]" label="Double bookings" value={clashFree ? "None" : String(status.hard_violations)} />
-                <Metric color="text-[#00f0f7]" label="Midsem papers spaced out" value={<><CountUp to={status.exams} /><span className="text-[0.55em] font-medium">/{status.exams}</span></>} />
-              </dl>
+          {/* Where the week stands, in four numbers. */}
+          <section className="glass overflow-hidden rounded-[16px] lg:col-span-12">
+            <dl className="grid grid-cols-2 lg:grid-cols-4">
+              <Metric label="Classes placed" href="/timetable" value={<><span>{status.sessions}</span><span className="text-[15px] font-medium text-ink-3"> / {total}</span></>}
+                note={status.sessions >= total ? "Every class has a room and a time." : `${total - status.sessions} classes still need a slot.`} />
+              <Metric label="Double bookings" href="/timetable" value={clashFree ? <span className="text-ok">0</span> : <span className="text-bad">{status.hard_violations}</span>}
+                note={clashFree ? "No student, teacher or room is ever in two places." : "Open the week to see who is double-booked."} />
+              <Metric label="Spectra events with a venue" href="/spectra" value={<><span>{fest?.hosted ?? status.approved + status.alternatives}</span><span className="text-[15px] font-medium text-ink-3"> / {fest?.total ?? totalReq}</span></>}
+                note={fest ? `${fest.nearby ? `${fest.nearby} got a nearby slot. ` : ""}${fest.declined} couldn't be hosted, with the reason.` : " "} />
+              <Metric label="Midsem papers" href="/exams" value={status.exams}
+                note={status.exam_penalty === 0 ? "Nobody sits two midsems on the same day." : "Some sections have two papers on one day."} />
+            </dl>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-rule bg-fill-2 px-5 py-3 text-[13px] text-ink-2">
+              <span className="font-medium text-ink">Small compromises: {status.soft_total ?? 0}</span>
+              <span>{trade.length ? `Only ${trade.join(", ")}. Everything else follows what people asked for.` : "Every preference is met."}</span>
+              <Link href="/insights" className="ml-auto font-medium text-accent hover:underline">See campus pulse</Link>
             </div>
-            <p className="mt-5 max-w-md text-[13px] leading-relaxed text-white/55">Every class has a room and a time. No student, teacher or room is ever booked twice, and nobody sits two midsems on the same day.</p>
           </section>
 
-          <div className="grid gap-5 lg:col-span-5">
-            <Widget label="Spectra events with a venue" tone="text-plum" href="/spectra">
-              <div className="flex items-end gap-3">
-                <span className="font-display text-[44px] font-semibold leading-none tracking-[-0.02em]"><CountUp to={status.approved} /><span className="text-ink-3">/{totalReq}</span></span>
-                <Bar value={status.approved} max={totalReq} />
-              </div>
-              <p className="mt-2 text-[13px] text-ink-2">{status.alternatives ? `${status.alternatives} got a nearby slot. ` : ""}{status.rejected} couldn&apos;t be hosted and were told exactly why.</p>
-            </Widget>
-            <Widget label="Small compromises" tone="text-warn" href="/insights">
-              <span className="font-display text-[44px] font-semibold leading-none tracking-[-0.02em]"><CountUp to={status.soft_total ?? 0} /></span>
-              <p className="mt-2 text-[13px] text-ink-2">{trade.length ? `Only ${trade.join(", ")}. Everything else follows what people asked for.` : "Every preference is met."}</p>
-            </Widget>
-          </div>
-
           <section className={isAdmin ? "lg:col-span-6" : "lg:col-span-12"}>
-            <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-2">Waiting on someone</h2>
+            <h2 className="mb-2.5 px-1 text-[15px] font-semibold">Next steps</h2>
             <div className="grouped">
               <Row href="/spectra" n={status.pending_bookings} one="Room request to approve" many="Room requests to approve" />
               {user?.role !== "club" && <Row href="/changes" n={status.pending_changes} one="Timetable change to review" many="Timetable changes to review" />}
@@ -106,7 +100,7 @@ export default function Today() {
 
           {isAdmin && (
             <section className="lg:col-span-6">
-              <h2 className="mb-2 px-1 text-[13px] font-semibold text-ink-2">Independent check, for the judges</h2>
+              <h2 className="mb-2.5 px-1 text-[15px] font-semibold">Independent check, for the judges</h2>
               {!val ? <div className="grouped"><Spinner label="Running the organisers' checker…" /></div> : (
                 <div className="grouped">
                   <Check name="The plan" r={val.schedule} />
@@ -116,7 +110,7 @@ export default function Today() {
                 </div>
               )}
               <p className="mt-2 px-1 text-[12px] leading-relaxed text-ink-3">
-                Built by the OR-Tools CP-SAT solver: {status.solve.variables?.toLocaleString()} decisions, proven best in {status.solve.seconds}s; midsems in {status.solve.exam_seconds}s. The AI helper never decides anything.
+                Planned with Google OR-Tools in {Math.round(status.solve.seconds ?? 0)} seconds (midsems in {Math.round(status.solve.exam_seconds ?? 0)}), and no better plan exists under the rules. The AI helper never decides anything.
               </p>
             </section>
           )}
@@ -126,29 +120,13 @@ export default function Today() {
   );
 }
 
-function Metric({ color, label, value }: { color: string; label: string; value: React.ReactNode }) {
+function Metric({ label, value, note, href }: { label: string; value: React.ReactNode; note: string; href: string }) {
   return (
-    <div>
-      <dt className="text-[13px] font-semibold text-white">{label}</dt>
-      <dd className={`font-display text-[30px] font-semibold leading-tight tracking-[-0.01em] tabular ${color}`}>{value}</dd>
-    </div>
-  );
-}
-
-function Widget({ label, tone, href, children }: { label: string; tone: string; href: string; children: React.ReactNode }) {
-  return (
-    <Link href={href} className="glass lift block rounded-[22px] p-5">
-      <div className={`flex items-center text-[13px] font-semibold ${tone}`}><span className="flex-1">{label}</span><Chevron /></div>
-      <div className="mt-3">{children}</div>
+    <Link href={href} className="group border-rule p-5 transition-colors duration-150 hover:bg-fill-2 [&:nth-child(n+2)]:border-l max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t">
+      <dt className="flex items-center text-[13px] font-medium text-ink-2"><span className="flex-1">{label}</span><span className="opacity-0 transition-opacity group-hover:opacity-100"><Chevron /></span></dt>
+      <dd className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.02em] tabular">{value}</dd>
+      <p className="mt-2.5 text-[13px] leading-snug text-ink-2">{note}</p>
     </Link>
-  );
-}
-
-function Bar({ value, max }: { value: number; max: number }) {
-  return (
-    <div className="mb-2 h-2 flex-1 overflow-hidden rounded-full bg-fill">
-      <div className="h-full rounded-full bg-plum transition-[width] duration-1000" style={{ width: `${(value / Math.max(1, max)) * 100}%` }} />
-    </div>
   );
 }
 
@@ -170,7 +148,7 @@ function Check({ name, r }: { name: string; r: Report }) {
       <div className="text-[15px]">
         <div>{name}: {ok ? "passed" : "needs attention"}</div>
         <div className="text-[13px] text-ink-2">
-          {ok ? "validator.py found nothing to fix" : `${r.hard_violation_count} problems found`}
+          {ok ? "The organisers\u2019 checker found nothing to fix" : `${r.hard_violation_count} problems found`}
           {r.bookings && <>; Spectra decisions follow the priority order{r.bookings.priority_inversions.length ? ` except ${r.bookings.priority_inversions.length}` : " exactly"}</>}
           {r.stability && <>; {r.stability.sessions_moved} classes moved{r.stability.time_changed === 0 ? ", none changed time" : `, ${r.stability.time_changed} changed time`}</>}.
         </div>
@@ -191,12 +169,12 @@ function MyCard() {
     if (user?.role === "faculty") api<{ sessions: MySession[] }>("/timetable").then((d) => setClasses(d.sessions.filter((x) => x.faculty_id === user.faculty_id))).catch(() => setClasses([]));
   }, [user, version]);
   if (user?.role === "faculty") return (
-    <Card kicker="Yours" title="Your week" actions={<Link href="/timetable" className="text-sm font-medium text-accent">Open it</Link>}>
+    <Card title="Your week" actions={<Link href="/timetable" className="text-sm font-medium text-accent">Open it</Link>}>
       {!classes ? <Spinner /> : <p className="text-[15px] text-ink-2">You teach <b className="text-ink">{classes.length} classes</b> this week{classes.length ? ` (${[...new Set(classes.map((c) => c.course_id))].join(", ")})` : ""}. Can&apos;t make one? <Link href="/changes" className="font-medium text-accent">Tell us</Link> and the planner finds the gentlest fix.</p>}
     </Card>
   );
   return (
-    <Card kicker="Yours" title="Your room requests" actions={<Link href="/request" className="text-sm font-medium text-accent">Ask for a room</Link>}>
+    <Card title="Your room requests" actions={<Link href="/request" className="text-sm font-medium text-accent">Ask for a room</Link>}>
       {!rows ? <Spinner /> : rows.length === 0 ? <p className="text-ink-3">Nothing asked for yet.</p> : (
         <ul className="space-y-2 text-sm">{rows.map((r) => (
           <li key={r.request.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-fill-2 px-4 py-3">
