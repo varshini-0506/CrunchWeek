@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.data import load_dataset, summarize
 from app.main import app
 
 client = TestClient(app)
@@ -12,7 +13,8 @@ def test_health():
 
 
 def test_summary_matches_problem_statement():
-    s = client.get("/dataset/summary").json()
+    assert client.get("/meta").status_code == 200
+    s = summarize(load_dataset())
     assert s["rooms"] == 27
     assert s["faculty"] == 40
     assert s["student_groups"] == 14
@@ -23,6 +25,7 @@ def test_summary_matches_problem_statement():
     assert s["exams"] == 41
 
 
-def test_rejects_bad_dataset():
-    r = client.post("/dataset", json={"dataset_id": "x"})
+def test_dataset_upload_needs_admin_and_valid_shape():
+    assert client.post("/dataset", json={"dataset_id": "x"}).status_code == 403
+    r = client.post("/dataset", json={"dataset_id": "x"}, headers={"X-User": "admin"})
     assert r.status_code == 422

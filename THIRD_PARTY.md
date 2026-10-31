@@ -11,6 +11,7 @@ All open-source libraries and services this project uses. Versions are pinned in
 | [ESLint](https://eslint.org) + eslint-config-next | MIT | Linting |
 | [FastAPI](https://fastapi.tiangolo.com) | MIT | Engine HTTP API |
 | [Uvicorn](https://www.uvicorn.org) | BSD-3-Clause | Engine ASGI server |
+| [Anthropic Python SDK](https://github.com/anthropics/anthropic-sdk-python) | MIT | Optional Claude calls (parsing and rewording only) |
 | [Pydantic](https://docs.pydantic.dev) | MIT | Request and response models |
 | [Google OR-Tools](https://developers.google.com/optimization) (CP-SAT) | Apache-2.0 | Timetable, exam and repair solving |
 | [pytest](https://pytest.org), [HTTPX](https://www.python-httpx.org) | MIT, BSD-3-Clause | Engine tests |

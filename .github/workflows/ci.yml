@@ -20,6 +20,9 @@ jobs:
       - name: Official validator on exports
         if: hashFiles('exports/schedule.json') != ''
         run: python validator.py --data ../data/cit_public.json --schedule ../exports/schedule.json
+      - name: Official validator on the repaired export
+        if: hashFiles('exports/schedule_after.json') != ''
+        run: python validator.py --data ../data/cit_public.json --schedule ../exports/schedule_after.json --disruption ../data/samples/sample_disruption.json --baseline ../exports/schedule.json
 
   web:
     runs-on: ubuntu-latest
@@ -35,5 +38,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - name: Generate Next.js route types (next-env.d.ts is git-ignored)
+        run: npx next typegen
       - run: npx tsc --noEmit
       - run: npm run build

@@ -1,0 +1,5 @@
+Dataset: cit-public-v1   Schedule says: cit-public-v1   Team: CrunchWeek
+Hard violations: 0  {}
+Soft penalty: 3  {'S1': 0, 'S2': 0, 'S3': 0, 'S4': 3, 'S5': 0, 'S6': 0}
+Bookings: score 67.0 | approved 22, alternatives 1, rejected 2, session overrides 0, priority inversions 0
+Exam soft penalty: 0
