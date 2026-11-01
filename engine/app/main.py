@@ -35,7 +35,12 @@ from .state import LOCK, SEED_FILE, STATE, State
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     if not STATE.assign and os.environ.get("AUTO_GENERATE", "1") != "0":
-        run_job("generate", lambda: seed_or_generate("system"), "system")
+        if os.environ.get("VERCEL"):
+            # Loading the seeded timetable is fast. A background thread would be
+            # frozen as soon as the first request finished.
+            seed_or_generate("system")
+        else:
+            run_job("generate", lambda: seed_or_generate("system"), "system")
     yield
     db.flush()  # finish any Supabase write still in flight
 
@@ -104,6 +109,11 @@ def run_job(kind: str, fn, actor: str) -> dict:
             with LOCK:
                 STATE.job = {"kind": kind, "status": "failed", "error": f"{type(e).__name__}: {e}", "by": actor}
 
+    if os.environ.get("VERCEL"):
+        # The process is frozen after the response, so the solve has to finish
+        # inside this request (bounded by the function's max duration).
+        work()
+        return STATE.job
     threading.Thread(target=work, daemon=True).start()
     return STATE.job
 

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app.py": {
+      "maxDuration": 300,
+      "includeFiles": "{data/**,engine/seed_state.json,engine/validator.py,engine/**/*.py}"
+    }
+  }
+}

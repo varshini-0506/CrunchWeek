@@ -3,6 +3,10 @@ import type { NextRequest } from "next/server";
 import { ENGINE_TOKEN, ENGINE_URL } from "@/lib/engine";
 import { COOKIE, readToken } from "@/lib/session";
 
+// Repairs and a fresh plan run inside the engine request. Keep this proxy open
+// long enough for that work to finish.
+export const maxDuration = 300;
+
 // The browser never talks to the engine directly: this route adds who is signed in.
 async function forward(request: NextRequest, path: string[]) {
   const store = await cookies();

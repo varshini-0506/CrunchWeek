@@ -14,7 +14,14 @@ from .checker import Assign
 from .data import load_dataset
 from .model import Ctx
 
-STATE_FILE = Path(os.environ.get("STATE_FILE", Path(__file__).resolve().parents[1] / ".state.json"))
+def _default_state_file() -> Path:
+    # Vercel instances can only write under /tmp, and that copy dies with the instance.
+    if os.environ.get("VERCEL"):
+        return Path("/tmp/crunchweek-state.json")
+    return Path(__file__).resolve().parents[1] / ".state.json"
+
+
+STATE_FILE = Path(os.environ.get("STATE_FILE", _default_state_file()))
 LOCK = threading.RLock()
 
 
@@ -94,6 +101,9 @@ class State:
         if path is None and db.enabled():
             # Supabase gets the same snapshot plus queryable tables, written in the background.
             db.save_async(json.loads(json.dumps(snap)), mirror.build(self))
+            # Once the response is sent, a Vercel instance is frozen and the writer thread stops.
+            if os.environ.get("VERCEL"):
+                db.flush(timeout=25)
 
     def load(self, path: Path | None = None) -> bool:
         """Load a snapshot. With DATABASE_URL set, the copy in Supabase wins over the local file."""
