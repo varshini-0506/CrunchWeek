@@ -853,6 +853,26 @@ def export_disruption() -> dict:
     return _combined_disruption()
 
 
+@app.get("/verify")
+def qverify_ep(week: str = "spectra", plant: bool = False) -> dict:
+    """Quantum-inspired verifier on the live week. plant=true checks a copy with one
+    deliberate clash added, to show it gets caught; the real timetable is not touched."""
+    need_timetable()
+    from .qverify import verify
+    ctx, a = STATE.ctx, dict(STATE.assign)
+    planted = None
+    if plant:
+        sids = sorted(a)
+        s1 = sids[0]
+        s2 = next(x for x in sids[1:] if ctx.sessions[x]["duration"] == ctx.sessions[s1]["duration"] and a[x][:2] != a[s1][:2])
+        a[s2] = a[s1]
+        planted = {"moved": s2, "onto": s1, "day": a[s1][0], "start_period": a[s1][1], "room_id": a[s1][2]}
+    out = verify(ctx, a, STATE.fest if week == "spectra" else None)
+    out["week"] = week
+    out["planted"] = planted
+    return out
+
+
 @app.get("/validate")
 def validate() -> dict:
     """Run the official validator on what we export, exactly as the judges would."""

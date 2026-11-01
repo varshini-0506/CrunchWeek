@@ -38,6 +38,7 @@ Full validator output: `exports/validator_schedule.txt`, `exports/validator_sche
 - **Every decision explains itself.** "Why is my class at 8 am?" lists what rules out each other time; every Spectra decision names who took the room and why ("SH-1 went to Quiz Club (BR-06), who has priority or asked first").
 - **Hinglish requests.** "kal shaam 6 se 8 baje robotics demo, 120 log, projector chahiye" becomes a structured request with stated assumptions, then a live preview of exactly what the arbiter would decide, before anything is sent.
 - **Approval routing, no self-approval.** Club and faculty requests go to a department coordinator or admin; admin requests need a different admin; disruptions need an admin.
+- **Quantum-inspired verifier.** Proves the whole week is clash-free in one pass, in milliseconds. Every busy hour becomes a token, and the tokens and the planner's certificate are encoded as polynomials and compared at 8 independent sample points. A planted clash is caught and located on the spot. See [docs/QUANTUM_VERIFIER.md](docs/QUANTUM_VERIFIER.md).
 - **The judges' validator is built in.** The Overview page runs `validator.py` on the live exports.
 
 ## Architecture
@@ -54,6 +55,7 @@ flowchart TD
         R[Fewest-moves repair] --> C
         N[Hinglish rule parser] --> L[Claude API, optional<br/>drafts and rewords only]
         V[validator.py bridge]
+        Q[Quantum-inspired verifier<br/>polynomial identity at sample points] --> C
     end
     E --> F[(Supabase Postgres<br/>state + timetable, bookings, audit)]
     E --> G[(Local fallback<br/>.state.json + seed_state.json)]
@@ -68,6 +70,7 @@ flowchart TD
 | `exams.py` | CP-SAT midsem exams with half-capacity room packing |
 | `arbiter.py` | Priority-first Spectra decisions with role caps, alternatives and Week-7-only class moves for institute events |
 | `repair.py` | Applies change files with the validator's semantics, re-solves with fewest moves, diagnoses infeasibility |
+| `qverify.py` | Quantum-inspired verifier: busy-hour tokens, ordered certificate, polynomial identity over GF(2^61−1) at 8 sample points, clash location ([details](docs/QUANTUM_VERIFIER.md)) |
 | `explain.py` | "Why here?", valid alternatives for a class, room utilisation |
 | `nlp.py`, `ai.py` | Rule-based English/Hinglish parser; optional Claude structured output, validated field by field |
 | `main.py`, `state.py` | API, approvals, audit log, exports |

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useApp } from "@/components/AppShell";
 import { Card, Spinner, PageHead } from "@/components/ui";
 import { api } from "@/lib/api";
+import QVerify from "@/components/QVerify";
 
 type Report = { hard_violation_count: number; hard_violations: { rule: string; where: string; detail: string }[]; soft_total: number; soft_penalties: Record<string, number>; bookings?: Record<string, unknown>; exam_soft_penalty?: number; stability?: Record<string, unknown>; warnings: string[] };
 
@@ -32,6 +33,7 @@ export default function Exports() {
           </div>
         ))}
       </div>
+      <QVerify />
       {!val ? <Spinner label="Running the organisers\u2019 checker…" /> : (
         <div className="grid gap-4 lg:grid-cols-2">
           <ReportCard name="schedule.json" r={val.schedule} />

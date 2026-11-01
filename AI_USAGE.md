@@ -15,6 +15,7 @@ No other model or AI API is called by the product.
 - Whether a timetable, exam schedule, booking or change is valid. Only the engine's constraint checker (`engine/app`) decides that.
 - A request's priority category. It is capped by the requester's role in code (`role_category_cap`).
 - Whether a booking is approved, rejected or offered an alternative. The booking arbiter in code decides.
+- Whether a week is clash-free. The quantum-inspired verifier (`engine/app/qverify.py`) is our own code and uses no LLM.
 - Anything that writes data. Every LLM output is a draft the user reviews and edits; the checker validates it before it is saved.
 
 If the LLM is unavailable or `AI_MODE=off`, the manual booking form and all scheduling features keep working.
@@ -28,3 +29,4 @@ In `engine/app/ai.py` (`_booking_prompt`, the change-request prompt in `draft_ch
 | Tool | Used for |
 | --- | --- |
 | Claude Code (Anthropic) | Problem and dataset analysis, project plan, scaffolding the Next.js app and FastAPI engine, code, tests and documentation |
+| Kokoro TTS (open-source, `kokoro-onnx`, run locally) | Voice-over for the feature video only; not part of the product |
