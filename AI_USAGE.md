@@ -29,4 +29,5 @@ In `engine/app/ai.py` (`_booking_prompt`, the change-request prompt in `draft_ch
 | Tool | Used for |
 | --- | --- |
 | Claude Code (Anthropic) | Problem and dataset analysis, project plan, scaffolding the Next.js app and FastAPI engine, code, tests and documentation |
+| Cursor | Code edits across the web app and engine, debugging, tests, and deploying the two Vercel projects |
 | Kokoro TTS (open-source, `kokoro-onnx`, run locally) | Voice-over for the feature video only; not part of the product |
