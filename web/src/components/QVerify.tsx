@@ -46,7 +46,7 @@ export default function QVerify() {
               ))}
             </div>
             <Button disabled={busy} onClick={() => go(false)}>Verify this week</Button>
-            <button disabled={busy} onClick={() => go(true)} className="rounded-[6px] border border-white/25 px-4 py-2 text-[14px] font-semibold hover:bg-white/10 disabled:opacity-50">Plant a clash and verify</button>
+            <Button disabled={busy} onClick={() => go(true)} className="border border-white/25 !bg-transparent !text-[#f4efe6] hover:!bg-white/10 disabled:!bg-transparent disabled:!text-[#f4efe6]">Plant a clash and verify</Button>
           </div>
           <p className="mt-2 text-[12px] text-[#f4efe6]/55">&ldquo;Plant a clash&rdquo; checks a copy with one class pushed onto another. The real timetable is never changed.</p>
           <ErrorBox error={error} />

@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { flushSync } from "react-dom";
 
 /** A content card. The title leads; `note` is an optional caption under it (never an eyebrow above it). */
 export function Card({ title, note, children, actions, className = "" }: { title?: React.ReactNode; note?: React.ReactNode; children: React.ReactNode; actions?: React.ReactNode; className?: string }) {
@@ -56,18 +57,47 @@ export function CountUp({ to }: { to: number; ms?: number }) {
   return <span className="tabular">{to}</span>;
 }
 
-export function Button({ children, onClick, kind = "primary", disabled, type = "button", small }: { children: React.ReactNode; onClick?: () => void; kind?: "primary" | "secondary" | "danger" | "ghost"; disabled?: boolean; type?: "button" | "submit"; small?: boolean }) {
+function isThenable(v: unknown): v is Promise<unknown> {
+  return typeof v === "object" && v !== null && typeof (v as { then?: unknown }).then === "function";
+}
+
+/** A ring that spins in the button's own text colour. */
+export function ButtonSpinner() {
+  return (
+    <span aria-hidden className="relative inline-block h-3.5 w-3.5 shrink-0">
+      <span className="absolute inset-0 rounded-full border-2 border-current opacity-30" />
+      <span className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-current" />
+    </span>
+  );
+}
+
+export function Button({ children, onClick, kind = "primary", disabled, loading: loadingProp, type = "button", small, className = "", caret }: { children: React.ReactNode; onClick?: () => void | Promise<unknown>; kind?: "primary" | "secondary" | "danger" | "ghost"; disabled?: boolean; loading?: boolean; type?: "button" | "submit"; small?: boolean; className?: string; caret?: boolean }) {
+  const [pending, setPending] = useState(false);
+  const loading = Boolean(loadingProp || pending);
+  const muted = loading ? "" : " disabled:bg-fill disabled:text-ink-3 disabled:hover:brightness-100";
   const k = {
-    primary: "bg-accent text-white hover:brightness-[1.08] disabled:bg-fill disabled:text-ink-3 disabled:hover:brightness-100",
-    secondary: "bg-fill text-ink hover:bg-fill/70 disabled:text-ink-3",
-    danger: "bg-bad-soft text-bad hover:bg-bad hover:text-white disabled:hover:bg-bad-soft disabled:hover:text-bad",
-    ghost: "text-link hover:underline disabled:text-ink-3",
+    primary: `bg-accent text-white hover:brightness-[1.08]${muted}`,
+    secondary: `bg-fill text-ink hover:bg-fill/70${loading ? "" : " disabled:text-ink-3"}`,
+    danger: `bg-bad-soft text-bad hover:bg-bad hover:text-white${loading ? "" : " disabled:hover:bg-bad-soft disabled:hover:text-bad"}`,
+    ghost: `text-link hover:underline${loading ? "" : " disabled:text-ink-3"}`,
   }[kind];
   const pad = kind === "ghost" ? (small ? "text-[13px]" : "text-[15px]") : small ? "px-3 py-1 text-[13px]" : "px-4 py-2 text-[14px]";
+
+  async function press() {
+    if (!onClick || loading) return;
+    let result: unknown;
+    try { result = onClick(); } catch { return; }
+    if (!isThenable(result)) return;
+    // Paint the spinner before a fast request can finish, so the click never looks like a dead button.
+    flushSync(() => setPending(true));
+    try { await result; } finally { setPending(false); }
+  }
+
   return (
-    <button type={type} onClick={onClick} disabled={disabled}
-      className={`inline-flex items-center gap-1 rounded-[6px] font-semibold transition-[filter,background-color,transform] duration-150 active:scale-[.98] disabled:cursor-not-allowed disabled:active:scale-100 disabled:opacity-70 ${pad} ${k}`}>
-      {children}{kind === "ghost" && <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>}
+    <button type={type} onClick={press} disabled={disabled || loading} aria-busy={loading || undefined}
+      className={`inline-flex items-center gap-1.5 rounded-[6px] font-semibold transition-[filter,background-color,transform] duration-150 active:scale-[.98] disabled:cursor-not-allowed disabled:active:scale-100 ${loading ? "!cursor-wait" : "disabled:opacity-70"} ${pad} ${k} ${className}`}>
+      {loading && <ButtonSpinner />}
+      {children}{kind === "ghost" && caret !== false && <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>}
     </button>
   );
 }

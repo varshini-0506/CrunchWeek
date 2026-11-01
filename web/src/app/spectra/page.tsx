@@ -94,7 +94,7 @@ export default function SpectraPage() {
                     {plainAi[id] && <p className="mt-2 rounded-[10px] bg-plum-soft p-3 text-plum">{plainAi[id]}</p>}
                     <div className="mt-1.5 flex flex-wrap gap-3">
                       <button onClick={() => setOpen(open === id ? null : id)} aria-expanded={open === id} className="text-[13px] font-medium text-ink-2 underline decoration-rule hover:text-ink hover:decoration-current">{open === id ? "Hide details" : "Details"}</button>
-                      {meta?.ai && d && !plainAi[id] && <button disabled={busy} className="text-[13px] font-medium text-ink-2 underline decoration-rule hover:text-ink hover:decoration-current" onClick={() => run(async () => { const x = await api<{ plain: { text: string } }>(`/bookings/${id}/explain?ai_words=true`); setPlainAi((p) => ({ ...p, [id]: x.plain.text })); })}>Say it simply</button>}
+                      {meta?.ai && d && !plainAi[id] && <Button small kind="ghost" caret={false} disabled={busy} className="!font-medium !text-ink-2 underline decoration-rule hover:!text-ink hover:!decoration-current" onClick={() => run(async () => { const x = await api<{ plain: { text: string } }>(`/bookings/${id}/explain?ai_words=true`); setPlainAi((p) => ({ ...p, [id]: x.plain.text })); })}>Say it simply</Button>}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-start gap-2 lg:w-[150px] lg:justify-end">

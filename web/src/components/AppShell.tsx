@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Button, ButtonSpinner } from "@/components/ui";
 import { api, type Job, type Meta } from "@/lib/api";
 import { ROLE_LABEL, type User } from "@/lib/users";
 import { IconBook, IconBox, IconChat, IconOut, IconPen, IconPulse, IconRefresh, IconSearch, IconShield, IconSpark, IconSwap, IconToday, IconWeek } from "./icons";
@@ -239,7 +240,7 @@ function applyTheme(t: Theme) {
   else { root.setAttribute("data-theme", t); localStorage.setItem("cw-theme", t); }
 }
 
-function Account({ user, ai, onSignOut, onClose, className }: { user: User; ai: boolean; onSignOut: () => void; onClose: () => void; className: string }) {
+function Account({ user, ai, onSignOut, onClose, className }: { user: User; ai: boolean; onSignOut: () => void | Promise<unknown>; onClose: () => void; className: string }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof document === "undefined") return "auto";
     const t = document.documentElement.dataset.theme;
@@ -262,7 +263,7 @@ function Account({ user, ai, onSignOut, onClose, className }: { user: User; ai: 
           {(["auto", "light", "dark"] as Theme[]).map((t) => <button key={t} onClick={() => pick(t)} className={`flex-1 capitalize ${theme === t ? "bg-accent" : ""}`}>{t}</button>)}
         </div>
         <p className="mt-4 text-[13px] leading-relaxed text-ink-3">{ai ? "The AI helper is on. It drafts and rewords; the planning engine makes every decision." : "The AI helper is off. Everything runs on the planning engine's own rules."}</p>
-        <button onClick={onSignOut} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-fill py-2 text-[13px] font-medium text-ink transition hover:bg-fill/70"><IconOut className="h-4 w-4" /> Switch desk</button>
+        <Button kind="secondary" onClick={onSignOut} className="mt-4 w-full justify-center rounded-xl py-2 font-medium"><IconOut className="h-4 w-4" /> Switch desk</Button>
       </div>
     </>
   );
@@ -311,20 +312,32 @@ function Spotlight({ links, isAdmin, busy, onClose, refresh }: { links: Nav[]; i
   const router = useRouter();
   const [q, setQ] = useState("");
   const [i, setI] = useState(0);
+  const [working, setWorking] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => { input.current?.focus(); }, []);
-  type Item = { label: string; note: string; icon: Icon; go: () => void; kind: string };
+  type Item = { label: string; note: string; icon: Icon; go: () => void | Promise<unknown>; kind: string };
   const items: Item[] = useMemo(() => {
     const pages: Item[] = links.map((n) => ({ label: n.label, note: n.note, icon: n.icon, kind: "Page", go: () => router.push(n.href) }));
     const acts: Item[] = isAdmin && !busy ? [
-      { label: "Plan again from scratch", note: "Rebuild the whole week, about a minute", icon: IconRefresh, kind: "Action", go: () => { api("/generate", {}).then(refresh); } },
-      { label: "Reset demo", note: "Back to the starting plan and requests", icon: IconRefresh, kind: "Action", go: () => { api("/reset", {}).then(refresh); } },
+      { label: "Plan again from scratch", note: "Rebuild the whole week, about a minute", icon: IconRefresh, kind: "Action", go: () => api("/generate", {}).then(refresh) },
+      { label: "Reset demo", note: "Back to the starting plan and requests", icon: IconRefresh, kind: "Action", go: () => api("/reset", {}).then(refresh) },
     ] : [];
     const all = [...pages, ...acts];
     const t = q.trim().toLowerCase();
     return t ? all.filter((x) => `${x.label} ${x.note}`.toLowerCase().includes(t)) : all;
   }, [q, links, isAdmin, busy, router, refresh]);
-  const pick = (x?: Item) => { if (!x) return; x.go(); onClose(); };
+  const pick = async (x?: Item) => {
+    if (!x || working) return;
+    const result = x.go();
+    try {
+      if (result && typeof (result as Promise<unknown>).then === "function") {
+        setWorking(x.label);
+        await result;
+      }
+      onClose();
+    } catch { /* leave search open if the action failed */ }
+    finally { setWorking(null); }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[16vh]" onClick={onClose}>
@@ -345,10 +358,10 @@ function Spotlight({ links, isAdmin, busy, onClose, refresh }: { links: Nav[]; i
             const I = x.icon;
             return (
               <li key={x.label}>
-                <button onMouseMove={() => setI(k)} onClick={() => pick(x)} className={`flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left ${k === i ? "bg-fill" : ""}`}>
+                <button disabled={!!working} onMouseMove={() => setI(k)} onClick={() => pick(x)} className={`flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left disabled:cursor-wait ${k === i ? "bg-fill" : ""}`}>
                   <I className={`h-5 w-5 ${k === i ? "text-ink" : "text-ink-3"}`} />
                   <span className="flex-1 text-[14px]">{x.label} <span className="text-ink-3">· {x.note}</span></span>
-                  <span className="text-[13px] text-ink-3">{x.kind}</span>
+                  {working === x.label ? <ButtonSpinner /> : <span className="text-[13px] text-ink-3">{x.kind}</span>}
                 </button>
               </li>
             );

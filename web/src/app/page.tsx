@@ -56,8 +56,8 @@ export default function Today() {
       <PageHead meta={date} title={set ? <>The week is set. Nothing collides.</> : <>Planning the week…</>}
         actions={isAdmin && (
           <>
-            <Button kind="secondary" disabled={busy || status.job.status === "running"} onClick={() => start("/reset")}>Reset demo</Button>
-            <Button disabled={busy || status.job.status === "running"} onClick={() => start("/generate")}>Plan again from scratch</Button>
+            <Button kind="secondary" disabled={busy || status.job.status === "running"} loading={status.job.status === "running" && status.job.kind === "reset"} onClick={() => start("/reset")}>Reset demo</Button>
+            <Button disabled={busy || status.job.status === "running"} loading={status.job.status === "running" && status.job.kind === "generate"} onClick={() => start("/generate")}>Plan again from scratch</Button>
           </>
         )}>
         {press?.finding ?? <>Good to see you, {first}. Here is where CIT&apos;s week stands.</>}

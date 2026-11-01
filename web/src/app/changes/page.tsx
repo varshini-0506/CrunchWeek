@@ -26,6 +26,9 @@ export default function ChangesPage() {
   const { busy, error, run, setError } = useBusy();
   const isAdmin = user?.role === "admin";
   const running = status?.job.status === "running";
+  // Which control started the repair, so that button keeps spinning after the request returns.
+  const [hold, setHold] = useState<"form" | "typed" | "file" | null>(null);
+  useEffect(() => { if (!running) setHold(null); }, [running]);
 
   useEffect(() => { api<{ pending: Change[]; applied: Change[] }>("/changes").then(setList).catch(() => {}); }, [version]);
 
@@ -42,7 +45,8 @@ export default function ChangesPage() {
   const previewJson = () => {
     try {
       const parsed = JSON.parse(json);
-      preview(Array.isArray(parsed) ? parsed : parsed.changes ?? [], parsed.description ?? "Uploaded change file");
+      setHold("file");
+      return preview(Array.isArray(parsed) ? parsed : parsed.changes ?? [], parsed.description ?? "Uploaded change file");
     } catch { setError(new Error("That is not valid JSON")); }
   };
   const loadSample = () => run(async () => setJson(JSON.stringify(await api("/samples/disruption"), null, 2)));
@@ -55,7 +59,7 @@ export default function ChangesPage() {
       </PageHead>
       <ErrorBox error={error} />
 
-      <ChangeForm busy={busy || !!running} onSubmit={preview} />
+      <ChangeForm busy={busy || !!running} loading={hold === "form" && !!running} onSubmit={(changes, note, summary) => { setHold("form"); return preview(changes, note, summary); }} />
 
       {sent && <Feedback sent={sent} running={!!running && status?.job.kind === "repair"} mine={mine} onClear={() => setSent(null)} />}
 
@@ -79,7 +83,7 @@ export default function ChangesPage() {
                 <div className="mb-1 font-medium">{facultyName(meta, c.faculty_id)} can&apos;t teach</div>
                 <div className="flex flex-wrap gap-1">{DAYS.map((d) => <Toggle key={d} on={c.days.includes(d)} onClick={() => setDraft({ ...draft, changes: [{ ...c, days: c.days.includes(d) ? c.days.filter((x) => x !== d) : [...c.days, d] }] })}>{DAY_NAME[d].slice(0, 3)}</Toggle>)}</div>
                 <div className="mt-1 flex flex-wrap gap-1">{PERIODS.map((p) => <Toggle key={p} on={c.periods.includes(p)} onClick={() => setDraft({ ...draft, changes: [{ ...c, periods: c.periods.includes(p) ? c.periods.filter((x) => x !== p) : [...c.periods, p].sort((a, b) => a - b) }] })}>{fmtHour(periodHour(p))}</Toggle>)}</div>
-                <div className="mt-2"><Button disabled={busy || running || !c.days.length || !c.periods.length} onClick={() => preview(draft.changes, text)}>See what would move</Button></div>
+                <div className="mt-2"><Button disabled={busy || running || !c.days.length || !c.periods.length} loading={hold === "typed" && !!running} onClick={() => { setHold("typed"); return preview(draft.changes, text); }}>See what would move</Button></div>
               </div>
             )))}
           </div>
@@ -93,7 +97,7 @@ export default function ChangesPage() {
             <div className="mt-4">
               <div className="mb-2 text-right"><Button small kind="ghost" onClick={loadSample}>Use the sample</Button></div>
               <textarea aria-label="Change file" value={json} onChange={(e) => setJson(e.target.value)} rows={7} placeholder='{"changes": [{"type": "room_unavailable", ...}]}' className="w-full rounded-[10px] p-3 font-mono text-[13px]" />
-              <div className="mt-2"><Button disabled={busy || running || !json.trim()} onClick={previewJson}>Find the gentlest fix</Button></div>
+              <div className="mt-2"><Button disabled={busy || running || !json.trim()} loading={hold === "file" && !!running} onClick={previewJson}>Find the gentlest fix</Button></div>
             </div>
           </details>
         )}
@@ -146,7 +150,7 @@ function whenText(sel: Set<string>) {
   return byDay.map(([d, ps]) => `${DAY_NAME[d]} ${hoursText(ps)}`).join("; ");
 }
 
-function ChangeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (changes: unknown[], note: string, summary: string) => void }) {
+function ChangeForm({ busy, loading, onSubmit }: { busy: boolean; loading?: boolean; onSubmit: (changes: unknown[], note: string, summary: string) => void | Promise<unknown> }) {
   const { user, meta } = useApp();
   const isFaculty = user?.role === "faculty";
   const [kind, setKind] = useState<Kind>("teacher");
@@ -190,7 +194,7 @@ function ChangeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (changes: unk
       ? { type: "faculty_unavailable", faculty_id: who, days: g.days, periods: g.periods, ...(why && { reason: why }) }
       : { type: "room_unavailable", room_id: room, days: g.days, periods: g.periods, ...(why && { reason: why }) });
     const summary = `${name} ${kind === "teacher" ? "can't teach" : "is closed"}: ${whenText(sel)}`;
-    onSubmit(changes, why || summary, summary);
+    return onSubmit(changes, why || summary, summary);
   };
 
   return (
@@ -294,7 +298,7 @@ function ChangeForm({ busy, onSubmit }: { busy: boolean; onSubmit: (changes: unk
                 {hit.length === 0 ? "No classes fall in those hours, so nothing has to move." : <>{hit.length} class{hit.length === 1 ? "" : "es"} will need a new {kind === "teacher" ? "time" : "room or time"}: {hit.map((s) => `${s.course_id} (${DAY_NAME[s.day].slice(0, 3)} ${fmtHour(periodHour(s.start_period))})`).join(", ")}.</>}
               </p>
             </>}
-            <div className="mt-3"><Button disabled={!ready || busy} onClick={send}>Find the smallest fix<IconArrowRight /></Button></div>
+            <div className="mt-3"><Button disabled={!ready || busy} loading={loading} onClick={send}>Find the smallest fix<IconArrowRight /></Button></div>
           </div>
         </Step>
       </div>
