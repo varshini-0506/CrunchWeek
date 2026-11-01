@@ -67,7 +67,9 @@ def test_disruption_repair_needs_admin_and_moves_few_sessions():
     cid = job["result"]["id"]
     assert client.post(f"/changes/{cid}/approve", headers=H("coord.cse")).status_code == 403
     applied = client.post(f"/changes/{cid}/approve", headers=H("admin")).json()
-    assert applied["diff"]["sessions_moved"] <= 8
+    # Fewest moves: exactly the classes whose old room or teacher is now unavailable
+    proof = {i["id"]: i for i in client.get("/proofs").json()["items"]}["repair"]
+    assert applied["diff"]["sessions_moved"] == proof["best_possible"] == proof["achieved"]
     rep = client.get("/validate").json()["schedule_after"]
     assert rep["hard_violation_count"] == 0
     assert rep["stability"]["sessions_moved"] == applied["diff"]["sessions_moved"]

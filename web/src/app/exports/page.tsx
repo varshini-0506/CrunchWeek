@@ -24,11 +24,11 @@ export default function Exports() {
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {files.map((f) => (
-          <div key={f.name} className="glass lift rounded-[16px] p-5">
+          <div key={f.name} className="glass rounded-[16px] p-5">
             <div className="font-mono text-[14px] font-medium">{f.name}</div>
             <div className="mt-1 text-[13px] text-ink-2">{f.text}</div>
-            {f.ok ? <a href={f.href} download={f.name} className="mt-4 inline-flex rounded-full bg-accent px-4 py-1.5 text-sm text-white transition hover:brightness-110">Download</a>
-              : <div className="mt-3 text-xs text-ink-3">Available after an admin approves a change</div>}
+            {f.ok ? <a href={f.href} download={f.name} className="mt-4 inline-flex rounded-full bg-fill px-4 py-1.5 text-[14px] font-medium text-ink transition-colors hover:bg-ink hover:text-paper">Download</a>
+              : <div className="mt-3 text-[13px] text-ink-3">Available after an admin approves a change</div>}
           </div>
         ))}
       </div>
@@ -42,7 +42,7 @@ export default function Exports() {
   );
 }
 
-const SOFT_NAME: Record<string, string> = { S1: "Times teachers asked to avoid", S2: "Gaps in a section's day", S3: "Rooms much bigger than the class", S4: "Classes at 5 pm", S5: "Unusually long days", S6: "Same course twice in a day" };
+const SOFT_NAME: Record<string, string> = { S1: "Times teachers asked to avoid", S2: "Gaps in a section's day", S3: "Section days over 6 hours", S4: "Same course lectured twice in a day", S5: "Rooms under 40% full", S6: "Classes at 5 pm" };
 
 function ReportCard({ name, r }: { name: string; r: Report }) {
   const b = r.bookings as { booking_score?: number; booking_score_max_if_all_approved?: number } | undefined;
@@ -59,7 +59,7 @@ function ReportCard({ name, r }: { name: string; r: Report }) {
       <ul className="divide-y divide-rule text-[14px]">
         {rows.map(([k, v, ok]) => (
           <li key={k} className="flex items-center gap-3 py-2">
-            <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-ok" : "bg-warn"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-ink-3/40" : "bg-warn"}`} />
             <span className="flex-1 text-ink-2">{k}</span><span className="font-medium tabular">{v}</span>
           </li>
         ))}

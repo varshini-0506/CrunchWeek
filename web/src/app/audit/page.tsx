@@ -28,7 +28,7 @@ export default function Audit() {
       {rows.length === 0 ? <Empty title="No activity yet">Plans, requests, approvals and published changes are logged here as they happen.</Empty> : (
         <div className="glass overflow-x-auto rounded-[16px] p-2">
           <table className="w-full text-sm">
-            <thead className="text-left text-[12px] text-ink-3"><tr><th className="px-3 py-2 font-medium">When</th><th className="font-medium">Who</th><th className="font-medium">What</th><th className="font-medium">Detail</th></tr></thead>
+            <thead className="text-left text-[13px] text-ink-3"><tr><th className="px-3 py-2 font-medium">When</th><th className="font-medium">Who</th><th className="font-medium">What</th><th className="font-medium">Detail</th></tr></thead>
             <tbody>{rows.map((r, i) => (
               <tr key={i} className="border-t border-rule align-baseline transition-colors hover:bg-fill-2">
                 <td className="whitespace-nowrap px-3 py-2.5 text-[13px] text-ink-3 tabular">{new Date(r.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}</td>

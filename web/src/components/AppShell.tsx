@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Job, type Meta } from "@/lib/api";
 import { ROLE_LABEL, type User } from "@/lib/users";
-import { IconBook, IconBox, IconChat, IconOut, IconPen, IconPulse, IconRefresh, IconSearch, IconSpark, IconSwap, IconToday, IconWeek } from "./icons";
+import { IconBook, IconBox, IconChat, IconOut, IconPen, IconPulse, IconRefresh, IconSearch, IconShield, IconSpark, IconSwap, IconToday, IconWeek } from "./icons";
 
 export type Status = {
   job: Job; timetable: boolean; sessions: number; total_sessions: number; hard_violations: number | null;
@@ -33,6 +33,7 @@ const NAV: Nav[] = [
   { href: "/request", label: "Ask for a room", short: "Ask", note: "In your own words", icon: IconChat, group: "Requests" },
   { href: "/changes", label: "Changes", short: "Changes", note: "Absences, closures", icon: IconSwap, group: "Requests", roles: ["admin", "department_coordinator", "faculty"] },
   { href: "/insights", label: "Campus pulse", short: "Pulse", note: "Rooms and load", icon: IconPulse, group: "Insight" },
+  { href: "/proof", label: "Proof", short: "Proof", note: "Why no plan can score better", icon: IconShield, group: "Insight" },
   { href: "/exports", label: "Files", short: "Files", note: "For the judges", icon: IconBox, group: "Insight" },
   { href: "/audit", label: "Logbook", short: "Logbook", note: "Every action", icon: IconBook, group: "Insight", roles: ["admin", "department_coordinator"] },
 ];
@@ -125,13 +126,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AppCtx.Provider value={{ user, meta, status, version, refresh, engineDown }}>
-      <div className="min-h-screen">
+      <div className="flex min-h-screen flex-col overflow-x-clip">
         {/* Top bar: logo, status and account, with the page row underneath. */}
         <header className="material sticky top-0 z-30 border-b border-rule">
           <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-3 px-4 sm:px-8">
             <Link href="/" className="group/logo flex items-center gap-2.5">
               <span className="transition-transform duration-500 [transition-timing-function:var(--ease-spring)] group-hover/logo:rotate-[-8deg] group-hover/logo:scale-110"><AppIcon /></span>
-              <span className="hidden leading-tight sm:block"><span className="block text-[15px] font-semibold tracking-[-0.01em]">CrunchWeek</span><span className="hidden text-[12px] text-ink-3 xl:block">Chilika Institute of Technology</span></span>
+              <span className="hidden items-baseline gap-3 leading-none sm:flex"><span className="font-poster text-[26px] uppercase tracking-[0.01em]">CrunchWeek</span><span className="hidden text-[13px] font-medium text-ink-3 xl:block">Chilika Institute of Technology</span></span>
             </Link>
             <span className="truncate text-[15px] font-semibold sm:hidden">{here?.label ?? ""}</span>
             <div className="ml-auto flex items-center gap-2">
@@ -146,7 +147,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           <NavRow links={links} pathname={pathname} badge={badge} onSearch={() => setSpot(true)} />
         </header>
 
-        <main key={pathname} className="rise mx-auto max-w-[1280px] px-4 pb-28 pt-8 sm:px-8 lg:pb-16 lg:pt-10">{children}</main>
+        <main key={pathname} className="rise mx-auto w-full max-w-[1280px] flex-1 px-4 pb-16 pt-8 sm:px-8 lg:pt-10">{NAV.some((n) => n.href === pathname && n.roles && !n.roles.includes(user.role)) ? (
+          <div className="glass mx-auto mt-10 max-w-[560px] rounded-[8px] p-8 text-center">
+            <h1 className="font-poster text-[32px] uppercase leading-none">Not for this desk</h1>
+            <p className="mt-3 text-ink-2">Your desk can&apos;t use this page. Switch desk from the round badge at the top right if you need it.</p>
+            <Link href="/" className="mt-5 inline-block rounded-[6px] bg-accent px-4 py-2 font-semibold text-white">Back to Today</Link>
+          </div>
+        ) : children}</main>
+
+        {/* The poster's sign-off: the name, edge to edge. */}
+        <footer className="overflow-hidden bg-[#0e1a1d] px-4 pb-24 pt-8 text-[#f7f9f8] sm:px-8 lg:pb-6">
+          <div className="mx-auto flex max-w-[1280px] flex-wrap justify-between gap-x-8 gap-y-1 text-[14px]">
+            <span className="font-semibold">Chilika Institute of Technology</span>
+            <span className="opacity-75">Week 7 · planned with Google OR-Tools, checked by the organisers&apos; own validator</span>
+          </div>
+          <p aria-hidden className="font-poster mt-4 whitespace-nowrap text-center text-[18.6vw] uppercase leading-[0.8] text-[#c0330f]">CrunchWeek</p>
+        </footer>
 
         {/* iOS tab bar */}
         <nav className="material fixed inset-x-0 bottom-0 z-40 border-t border-rule pb-[env(safe-area-inset-bottom)] lg:hidden">
@@ -155,13 +171,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               const on = pathname === n.href;
               const I = n.icon;
               return (
-                <Link key={n.href} href={n.href} className={`flex h-[52px] flex-col items-center justify-center gap-0.5 text-[12px] font-medium ${on ? "text-accent" : "text-ink-3"}`}>
-                  <span className="relative"><I className="h-6 w-6" />{badge(n.href) > 0 && <span className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[12px] text-white">{badge(n.href)}</span>}</span>
+                <Link key={n.href} href={n.href} className={`flex h-[52px] flex-col items-center justify-center gap-0.5 text-[13px] font-medium ${on ? "text-accent" : "text-ink-3"}`}>
+                  <span className="relative"><I className="h-6 w-6" />{badge(n.href) > 0 && <span className="absolute -right-2 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-bad px-1 text-[13px] text-white">{badge(n.href)}</span>}</span>
                   {n.short}
                 </Link>
               );
             })}
-            <button onClick={() => setMore(true)} className={`flex h-[52px] flex-col items-center justify-center gap-0.5 text-[12px] font-medium ${!TABS.includes(pathname) ? "text-accent" : "text-ink-3"}`}>
+            <button onClick={() => setMore(true)} className={`flex h-[52px] flex-col items-center justify-center gap-0.5 text-[13px] font-medium ${!TABS.includes(pathname) ? "text-accent" : "text-ink-3"}`}>
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
               More
             </button>
@@ -177,8 +193,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   const I = n.icon;
                   return (
                     <Link key={n.href} href={n.href} onClick={() => setMore(false)} className="flex items-center gap-3 px-4 py-3">
-                      <I className="h-[22px] w-[22px] text-accent" />
-                      <span className="flex-1"><span className="block text-[15px]">{n.label}</span><span className="block text-[12px] text-ink-3">{n.note}</span></span>
+                      <I className="h-[22px] w-[22px] text-ink-3" />
+                      <span className="flex-1"><span className="block text-[15px]">{n.label}</span><span className="block text-[13px] text-ink-3">{n.note}</span></span>
                       <Chevron />
                     </Link>
                   );
@@ -206,7 +222,7 @@ export function AppIcon({ small }: { small?: boolean }) {
 }
 
 function Avatar({ initials }: { initials: string }) {
-  return <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-semibold text-white">{initials}</span>;
+  return <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#0e1a1d] text-[13px] font-semibold text-[#f7f9f8]">{initials}</span>;
 }
 
 export function Chevron() {
@@ -241,11 +257,11 @@ function Account({ user, ai, onSignOut, onClose, className }: { user: User; ai: 
       <div className={`pop absolute z-50 w-72 rounded-2xl bg-sheet p-4 text-sm shadow-[var(--shadow-pop)] ${className}`}>
         <div className="text-[15px] font-semibold leading-tight">{user.name}</div>
         <div className="mt-0.5 text-[13px] text-ink-3">{ROLE_LABEL[user.role]}{user.department ? ` · ${user.department}` : ""}</div>
-        <div className="mt-4 text-[12px] font-semibold text-ink-3">Appearance</div>
+        <div className="mt-4 text-[13px] font-semibold text-ink-3">Appearance</div>
         <div className="seg mt-1.5 w-full">
           {(["auto", "light", "dark"] as Theme[]).map((t) => <button key={t} onClick={() => pick(t)} className={`flex-1 capitalize ${theme === t ? "bg-accent" : ""}`}>{t}</button>)}
         </div>
-        <p className="mt-4 text-[12px] leading-relaxed text-ink-3">{ai ? "The AI helper is on. It drafts and rewords; the planning engine makes every decision." : "The AI helper is off. Everything runs on the planning engine's own rules."}</p>
+        <p className="mt-4 text-[13px] leading-relaxed text-ink-3">{ai ? "The AI helper is on. It drafts and rewords; the planning engine makes every decision." : "The AI helper is off. Everything runs on the planning engine's own rules."}</p>
         <button onClick={onSignOut} className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-fill py-2 text-[13px] font-medium text-ink transition hover:bg-fill/70"><IconOut className="h-4 w-4" /> Switch desk</button>
       </div>
     </>
@@ -268,11 +284,10 @@ function Island({ status, engineDown }: { status: Status | null; engineDown: str
   return (
     <div className="relative">
       <button onClick={() => setOpen(!open)}
-        className={`relative flex h-8 items-center gap-2 overflow-hidden rounded-full bg-sheet text-[13px] font-medium text-ink-2 shadow-[var(--shadow-card)] transition-all duration-300 hover:text-ink ${running ? "pl-3 pr-4" : "pl-3 pr-3.5"}`}>
+        className={`relative flex h-8 items-center gap-2 overflow-hidden rounded-full border border-[var(--edge)] bg-sheet text-[13px] font-medium text-ink-2 transition-[padding,color] duration-300 hover:text-ink ${running ? "pl-3 pr-4" : "pl-3 pr-3.5"}`}>
         {running && <span className="shimmer absolute inset-0" />}
         <span className="relative flex h-2 w-2">
-          {(running || engineDown) && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${tone} opacity-70`} />}
-          <span className={`relative inline-flex h-2 w-2 rounded-full ${tone}`} />
+                    <span className={`relative inline-flex h-2 w-2 rounded-full ${tone}`} />
         </span>
         <span className="relative whitespace-nowrap">{text}{running && "…"}</span>
       </button>
@@ -313,7 +328,7 @@ function Spotlight({ links, isAdmin, busy, onClose, refresh }: { links: Nav[]; i
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[16vh]" onClick={onClose}>
-      <div className="pop w-full max-w-[640px] overflow-hidden rounded-[18px] shadow-[var(--shadow-pop)]" style={{ background: "color-mix(in srgb, var(--surface) 93%, transparent)", backdropFilter: "saturate(180%) blur(50px)", WebkitBackdropFilter: "saturate(180%) blur(50px)" }} onClick={(e) => e.stopPropagation()}>
+      <div className="pop w-full max-w-[640px] overflow-hidden rounded-[18px] shadow-[var(--shadow-pop)]" style={{ background: "var(--surface)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 px-4 py-3">
           <IconSearch className="h-[22px] w-[22px] text-ink-3" />
           <input ref={input} value={q} onChange={(e) => { setQ(e.target.value); setI(0); }}
@@ -330,10 +345,10 @@ function Spotlight({ links, isAdmin, busy, onClose, refresh }: { links: Nav[]; i
             const I = x.icon;
             return (
               <li key={x.label}>
-                <button onMouseMove={() => setI(k)} onClick={() => pick(x)} className={`flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left ${k === i ? "bg-accent text-white" : ""}`}>
-                  <I className={`h-5 w-5 ${k === i ? "text-white" : "text-accent"}`} />
-                  <span className="flex-1 text-[14px]">{x.label} <span className={k === i ? "text-white/70" : "text-ink-3"}>· {x.note}</span></span>
-                  <span className={`text-[12px] ${k === i ? "text-white/70" : "text-ink-3"}`}>{x.kind}</span>
+                <button onMouseMove={() => setI(k)} onClick={() => pick(x)} className={`flex w-full items-center gap-3 rounded-[10px] px-3 py-2 text-left ${k === i ? "bg-fill" : ""}`}>
+                  <I className={`h-5 w-5 ${k === i ? "text-ink" : "text-ink-3"}`} />
+                  <span className="flex-1 text-[14px]">{x.label} <span className="text-ink-3">· {x.note}</span></span>
+                  <span className="text-[13px] text-ink-3">{x.kind}</span>
                 </button>
               </li>
             );
@@ -348,7 +363,7 @@ function Spotlight({ links, isAdmin, busy, onClose, refresh }: { links: Nav[]; i
     the one you point at grows most, its neighbours a little, and the rest stay put. */
 const ANIM: Record<string, string> = {
   "/": "spin", "/timetable": "flip", "/exams": "wiggle", "/spectra": "twinkle", "/request": "bob",
-  "/changes": "swap", "/insights": "beat", "/exports": "lift", "/audit": "tilt",
+  "/changes": "swap", "/insights": "beat", "/exports": "lift", "/audit": "tilt", "/proof": "beat",
 };
 
 /** The page row: the sidebar's groups laid out in one line. A soft pill glides to whatever
@@ -416,12 +431,11 @@ function NavRow({ links, pathname, badge, onSearch }: { links: Nav[]; pathname: 
         <button onClick={onSearch} onPointerEnter={() => setHover(null)} onTransitionEnd={() => measure(hover ?? pathname)} className="navsearch group relative z-[1] mr-2 flex h-9 items-center gap-2 rounded-[10px] bg-fill px-3 text-[13px] text-ink-3 transition-colors hover:text-ink">
           <IconSearch className="h-[15px] w-[15px] transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110" />
           <span>Search</span>
-          <kbd className="navkbd overflow-hidden whitespace-nowrap rounded bg-sheet px-1.5 font-sans text-[11px] text-ink-3 shadow-[var(--shadow-card)]">Ctrl K</kbd>
+          <kbd className="navkbd overflow-hidden whitespace-nowrap rounded border border-[var(--edge)] bg-sheet px-1.5 font-sans text-[12px] text-ink-3">Ctrl K</kbd>
         </button>
         {groups.map((g, gi) => (
           <div key={g} className="flex items-center gap-1">
             {gi > 0 && <span aria-hidden className="mx-1.5 h-5 w-px bg-rule" />}
-            <span className="mr-1 hidden text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-3/80 2xl:inline">{g}</span>
             {links.filter((l) => l.group === g).map((n) => {
               const on = pathname === n.href;
               const I = n.icon;
@@ -430,10 +444,10 @@ function NavRow({ links, pathname, badge, onSearch }: { links: Nav[]; pathname: 
                 <Link key={n.href} href={n.href} ref={(el) => { items.current[n.href] = el; }}
                   onPointerEnter={() => setHover(n.href)} onFocus={(e) => { setHover(n.href); const r = e.currentTarget.getBoundingClientRect(); lens(r.left + r.width / 2); }} onBlur={() => { setHover(null); lens(null); }}
                   aria-current={on ? "page" : undefined} data-anim={ANIM[n.href]}
-                  className={`navitem group relative flex h-9 items-center gap-2 rounded-[10px] px-2.5 text-[13.5px] ${on ? "font-semibold text-ink" : "text-ink-2 hover:text-ink"}`}>
-                  <span className="navicon text-accent"><I className="h-[17px] w-[17px]" /></span>
+                  className={`navitem group relative flex h-9 items-center gap-2 rounded-[10px] px-2.5 text-[14px] ${on ? "font-semibold text-ink" : "text-ink-2 hover:text-ink"}`}>
+                  <span className={`navicon ${on ? "text-accent" : "text-ink-3 group-hover:text-ink"}`}><I className="h-[17px] w-[17px]" /></span>
                   <span className="whitespace-nowrap"><span className="2xl:hidden">{n.short}</span><span className="hidden 2xl:inline">{n.label}</span></span>
-                  {b > 0 && <span key={b} className="navbadge grid h-[18px] min-w-[18px] place-items-center rounded-full bg-bad px-1 text-[11px] font-semibold text-white">{b}</span>}
+                  {b > 0 && <span key={b} className="navbadge grid h-[18px] min-w-[18px] place-items-center rounded-full bg-bad px-1 text-[12px] font-semibold text-white">{b}</span>}
                   <span aria-hidden className={`navdot absolute -bottom-[5px] left-1/2 h-[3px] -translate-x-1/2 rounded-full bg-accent ${on ? "w-4 opacity-100" : "w-0 opacity-0"}`} />
                 </Link>
               );

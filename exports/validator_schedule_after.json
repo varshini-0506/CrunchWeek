@@ -5,12 +5,12 @@
   "soft_penalties": {
     "S1": 0,
     "S2": 0,
-    "S3": 0,
+    "S3": 3,
     "S4": 3,
     "S5": 0,
     "S6": 0
   },
-  "soft_total": 3,
+  "soft_total": 6,
   "bookings": {
     "booking_score": 67.0,
     "booking_score_max_if_all_approved": 70,
@@ -22,18 +22,22 @@
   },
   "exam_soft_penalty": 0,
   "stability": {
-    "sessions_moved": 8,
-    "time_changed": 0,
-    "room_only_changed": 8,
+    "sessions_moved": 12,
+    "time_changed": 1,
+    "room_only_changed": 11,
     "moved_ids": [
-      "CE302-L1",
-      "CS101-C-L1",
-      "CS202-L2",
-      "EE203-L3",
-      "ME201-L2",
-      "PH101-C-L1",
-      "PH101-D-L1",
-      "PH101-D-L3"
+      "CE202-L1",
+      "CE303-L1",
+      "CE303-L2",
+      "CS101-B-L1",
+      "CS292-P1",
+      "CS301-L2",
+      "EE201-L1",
+      "EE202-L3",
+      "EE204-L3",
+      "EE301-L3",
+      "EE303-L3",
+      "ME303-L2"
     ]
   },
   "hard_violations": [],

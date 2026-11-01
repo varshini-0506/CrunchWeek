@@ -65,3 +65,23 @@ def test_checker_agrees_with_official_on_broken_timetables(ctx, solved):
 def test_reserves_spectra_slots(solved):
     # every live request that touches teaching hours got a slot held open
     assert {"BR-01", "BR-03", "BR-08", "BR-19", "BR-20"} <= set(solved.reserved)
+
+
+def test_proofs_match_the_official_scores(ctx, solved):
+    from app.proofs import booking_upper_bound, soft_lower_bound
+    sb = soft_lower_bound(ctx)
+    # CS204 for CSE-2: 3 lectures, visiting teacher on Tue and Thu only
+    assert sb["bound"] == 3 and sb["reasons"][0]["course"] == "CS204"
+    _, soft = _official(ctx, solved.assign)
+    assert soft == sb["bound"]               # the solver reaches the proven minimum
+    assert solved.trace["stage1"]["status"] == "OPTIMAL"
+    bk = booking_upper_bound(ctx)
+    assert bk["max_if_all_approved"] == 70 and bk["bound"] == 67
+
+
+def test_later_stages_keep_the_soft_score_and_improve_the_week(ctx, solved):
+    from app.resilience import resilience_report, week_quality
+    q = week_quality(ctx, solved.assign)
+    assert q["eight_am_classes"] <= 2 and q["building_changes"] <= 10
+    r = resilience_report(ctx, solved.assign)
+    assert r["available"] and r["scenarios"] > 100

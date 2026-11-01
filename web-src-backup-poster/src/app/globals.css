@@ -1,0 +1,246 @@
+@import "tailwindcss";
+
+/* CrunchWeek theme: "Lagoon & Vermilion".
+   Named for Chilika lake. Four colours carry the whole product:
+   - Lagoon ink (#091114 / #0e1a1d): the night water. Dark surfaces and all text in light mode.
+   - Bone (#ece5d3 / #efe9dc): old timetable paper. Light surfaces and all text in dark mode.
+   - Vermilion (#ff6a3d / #cc3a16): the one colour that asks you to act, and the colour of a clash caught.
+   - Brass (#e8b54d): heads-up and midsems. Jade (#5fd3a8): all clear. Dusk (#a98bea): Spectra.
+   Type: Inter Tight throughout; tabular numbers for anything that is counted or timed. */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root, [data-theme="light"] {
+  --bg: #e6ecec;            /* lake-grey paper: Chilika at first light (was bone #efe9dc) */
+  --surface: #f7f9f9;
+  --surface-2: #eef2f2;
+  --fill: rgba(14, 26, 29, 0.08);
+  --fill-2: rgba(14, 26, 29, 0.05);
+  --label: #0e1a1d;         /* lagoon ink */
+  --label-2: #3f4b4c;
+  --label-3: #4b585a;
+  --separator: rgba(14, 26, 29, 0.12);
+  --blue: #c0330f;          /* vermilion: the one action colour (token name kept so every page picks it up) */
+  --link: #ad2e0c;
+  --green: #146547;         /* jade: all clear */
+  --orange: #74500a;        /* brass: heads-up */
+  --red: #c42d2d;
+  --teal: #23788a;
+  --purple: #6a4ea3;        /* dusk: Spectra */
+  --material: #e6ecec;
+  --material-border: rgba(14, 26, 29, 0.08);
+  --edge: rgba(14, 26, 29, 0.1);   /* the one 1px panel edge; panels never carry a shadow at rest */
+  --shadow-card: none;
+  --shadow-pop: 0 0 0 1px rgba(14, 26, 29, 0.1), 0 18px 44px rgba(14, 26, 29, 0.16);
+  --fitness: #0e1a1d;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #091114; --surface: #0f1a1d; --surface-2: #132226; --fill: rgba(236, 229, 211, 0.1); --fill-2: rgba(236, 229, 211, 0.06);
+    --label: #ece5d3; --label-2: #a3aba5; --label-3: #838e8a; --separator: rgba(236, 229, 211, 0.11);
+    --blue: #ff6a3d; --link: #ff8a63; --green: #5fd3a8; --orange: #e8b54d; --red: #ff5a4e; --teal: #6cc7d1; --purple: #a98bea;
+    --material: #091114; --material-border: rgba(236, 229, 211, 0.08);
+    --edge: rgba(236, 229, 211, 0.1); --shadow-card: none; --shadow-pop: 0 0 0 1px rgba(236, 229, 211, 0.12), 0 22px 60px rgba(0, 0, 0, 0.55);
+    --fitness: #0f1a1d; color-scheme: dark;
+  }
+}
+[data-theme="dark"] {
+  --bg: #091114; --surface: #0f1a1d; --surface-2: #132226; --fill: rgba(236, 229, 211, 0.1); --fill-2: rgba(236, 229, 211, 0.06);
+  --label: #ece5d3; --label-2: #a3aba5; --label-3: #838e8a; --separator: rgba(236, 229, 211, 0.11);
+  --blue: #ff6a3d; --link: #ff8a63; --green: #5fd3a8; --orange: #e8b54d; --red: #ff5a4e; --teal: #6cc7d1; --purple: #a98bea;
+  --material: #091114; --material-border: rgba(236, 229, 211, 0.08);
+  --edge: rgba(236, 229, 211, 0.1); --shadow-card: none; --shadow-pop: 0 0 0 1px rgba(236, 229, 211, 0.12), 0 22px 60px rgba(0, 0, 0, 0.55);
+  --fitness: #0f1a1d; color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  --font-display: var(--font-inter), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-jbmono), ui-monospace, Menlo, monospace;
+  --color-vermilion: var(--blue);
+  --color-brass: var(--orange);
+  --color-jade: var(--green);
+  --color-dusk: var(--purple);
+  --color-dusk-soft: color-mix(in srgb, var(--purple) 16%, transparent);
+
+  --color-paper: var(--bg);
+  --color-paper-2: var(--fill-2);
+  --color-sheet: var(--surface);
+  --color-fill: var(--fill);
+  --color-fill-2: var(--fill-2);
+  --color-ink: var(--label);
+  --color-ink-2: var(--label-2);
+  --color-ink-3: var(--label-3);
+  --color-rule: var(--separator);
+  --color-accent: var(--blue);
+  --color-link: var(--link);
+  --color-accent-soft: color-mix(in srgb, var(--blue) 12%, transparent);
+  --color-ok: var(--green);
+  --color-ok-soft: color-mix(in srgb, var(--green) 13%, transparent);
+  --color-warn: var(--orange);
+  --color-warn-soft: color-mix(in srgb, var(--orange) 14%, transparent);
+  --color-bad: var(--red);
+  --color-bad-soft: color-mix(in srgb, var(--red) 11%, transparent);
+  --color-lake: var(--teal);
+  --color-lake-soft: color-mix(in srgb, var(--teal) 15%, transparent);
+  --color-plum: var(--purple);
+  --color-plum-soft: color-mix(in srgb, var(--purple) 12%, transparent);
+
+  --color-riso-lecture: color-mix(in srgb, var(--label) 7%, var(--surface));
+  --color-riso-tutorial: color-mix(in srgb, var(--teal) 12%, var(--surface));
+  --color-riso-lab: color-mix(in srgb, var(--orange) 12%, var(--surface));
+  --color-riso-event: color-mix(in srgb, var(--purple) 15%, var(--surface));
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@layer base {
+  *, ::before, ::after { border-color: var(--separator); }
+  html { background: var(--bg); scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--label);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    letter-spacing: -0.009em;
+    font-optical-sizing: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, .font-display { font-family: var(--font-display); font-optical-sizing: auto; }
+  ::selection { background: color-mix(in srgb, var(--blue) 28%, transparent); color: var(--label); }
+  /* Browser surfaces carry the palette too. */
+  html { accent-color: var(--blue); caret-color: var(--blue); scrollbar-color: color-mix(in srgb, var(--label) 22%, transparent) transparent; scrollbar-width: thin; }
+  a { text-underline-offset: 3px; text-decoration-thickness: 1px; }
+  h1, h2, h3 { text-wrap: balance; }
+  p { text-wrap: pretty; }
+  table, time, [data-num] { font-variant-numeric: tabular-nums; }
+  select { cursor: pointer; }
+  input, select, textarea {
+    background: var(--surface); color: var(--label); border: 0; border-radius: 10px;
+    box-shadow: inset 0 0 0 1px var(--edge);
+    transition: box-shadow .2s ease;
+  }
+  input::placeholder, textarea::placeholder { color: var(--label-3); }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--blue) 35%, transparent), inset 0 0 0 1px var(--blue); }
+  button:focus-visible, a:focus-visible { outline: 3px solid color-mix(in srgb, var(--blue) 45%, transparent); outline-offset: 2px; border-radius: 10px; }
+  button { cursor: pointer; }
+  button:disabled { cursor: default; }
+}
+
+@layer components {
+  /* Content surface: solid, quiet, no border. (Kept under the old class name so every page picks it up.) */
+  .glass { background: var(--surface); border: 1px solid var(--edge); }
+  .glass-thin { background: var(--fill-2); }
+  /* Chrome: opaque, on the page ground. No glass. */
+  .material { background: var(--material); }
+
+  .stamp {
+    display: inline-flex; align-items: center; gap: .32rem; font-size: 12px; font-weight: 500;
+    padding: .14rem .55rem .14rem .45rem; border-radius: 9999px; white-space: nowrap;
+    background: color-mix(in srgb, currentColor 11%, transparent);
+  }
+  .stamp::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }
+  /* Timetable blocks: a tinted fill and a 1px ring in the kind's hue. No side stripes. */
+  .blk { --tone: var(--label-3); background: color-mix(in srgb, var(--tone) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent); }
+  .blk-lecture { --tone: var(--label-3); background: color-mix(in srgb, var(--label) 6%, var(--surface)); }
+  .blk-tutorial { --tone: var(--teal); }
+  .blk-lab { --tone: var(--orange); }
+  .blk-event { --tone: var(--purple); }
+  .blk-club { --tone: var(--teal); }
+  .blk-tag { display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--tone, var(--label-3)); vertical-align: 1px; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* Segmented control (UISegmentedControl). */
+  .seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--fill); gap: 0; }
+  .seg > button { padding: .3rem .85rem; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--label); transition: background .2s ease, box-shadow .2s ease; }
+
+  /* Inset grouped list rows with hairlines inset from the leading edge. */
+  .grouped { background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--edge); }
+  .grouped > * + * { border-top: 1px solid var(--separator); }
+}
+
+/* Selected segment: unlayered so it wins over the bg-accent utility the pages set. */
+.seg > button.bg-accent { background: var(--surface); color: var(--label); outline: 1px solid var(--edge); outline-offset: -1px; }
+[data-theme="dark"] .seg > button.bg-accent { background: #24363b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .seg > button.bg-accent { background: #24363b; } }
+
+/* Motion: purposeful and short. */
+/* App screens don't perform entrances (taste-skill app rule): content is simply there.
+   Motion is feedback only: press, hover, focus, a menu or sheet opening. */
+.rise, .stagger > * { animation: none; }
+/* Engine busy: a flat tint that breathes, no gradient sweep. */
+@keyframes busy { 0%, 100% { opacity: .0; } 50% { opacity: .5; } }
+.shimmer { background: color-mix(in srgb, var(--orange) 18%, transparent); animation: busy 1.6s ease-in-out infinite; }
+@keyframes pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+.pop { animation: pop .28s var(--ease-out-quart) both; }
+@keyframes sheet { from { transform: translateY(100%); } to { transform: none; } }
+.sheet-in { animation: sheet .4s var(--ease-out-quart) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Top menu magnifier: each item scales by --z, set from the cursor position. */
+
+/* ------------------------------------------------------------------ page row micro-interactions */
+.navitem { transform: scale(var(--z, 1)); transform-origin: 50% 60%; margin-inline: var(--spread, 0px); z-index: 1;
+  transition: transform .22s cubic-bezier(.2, .9, .3, 1.15), margin .22s cubic-bezier(.2, .9, .3, 1.15), color .2s; will-change: transform; }
+.navitem:hover { z-index: 2; }
+.navitem:active { transform: scale(calc(var(--z, 1) * .95)); }
+.navpill { transition: transform .45s cubic-bezier(.3, 1.35, .45, 1), width .45s cubic-bezier(.3, 1.35, .45, 1), background-color .25s ease; will-change: transform, width; }
+.navdot { transition: width .4s cubic-bezier(.3, 1.4, .5, 1), opacity .25s ease; }
+.navkbd { max-width: 0; padding-inline: 0; opacity: 0; transition: max-width .35s cubic-bezier(.3, 1.2, .5, 1), padding .35s, opacity .25s; }
+.navsearch:hover .navkbd, .navsearch:focus-visible .navkbd { max-width: 4rem; padding-inline: .375rem; opacity: 1; }
+.navbadge { animation: badge-pop .5s cubic-bezier(.3, 1.6, .5, 1) both; }
+@keyframes badge-pop { 0% { transform: scale(.96); opacity: 0; } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.navicon { display: inline-grid; place-items: center; transition: transform .35s cubic-bezier(.3, 1.4, .5, 1); }
+.navitem:hover .navicon, .navitem:focus-visible .navicon { animation-duration: .7s; animation-timing-function: cubic-bezier(.3, 1.2, .5, 1); animation-fill-mode: both; }
+.navitem[data-anim="spin"]:hover .navicon { animation-name: nav-spin; }
+.navitem[data-anim="flip"]:hover .navicon { animation-name: nav-flip; }
+.navitem[data-anim="wiggle"]:hover .navicon { animation-name: nav-wiggle; }
+.navitem[data-anim="twinkle"]:hover .navicon { animation-name: nav-twinkle; }
+.navitem[data-anim="bob"]:hover .navicon { animation-name: nav-bob; }
+.navitem[data-anim="swap"]:hover .navicon { animation-name: nav-swap; }
+.navitem[data-anim="beat"]:hover .navicon { animation-name: nav-beat; }
+.navitem[data-anim="lift"]:hover .navicon { animation-name: nav-lift; }
+.navitem[data-anim="tilt"]:hover .navicon { animation-name: nav-tilt; }
+.navitem[aria-current="page"] .navicon { transform: scale(1.08); }
+@keyframes nav-spin { to { transform: rotate(90deg) scale(1.1); } }
+@keyframes nav-flip { 0% { transform: none; } 40% { transform: perspective(60px) rotateX(-70deg); } 100% { transform: perspective(60px) rotateX(0); } }
+@keyframes nav-wiggle { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-16deg); } 45% { transform: rotate(12deg); } 70% { transform: rotate(-6deg); } }
+@keyframes nav-twinkle { 0% { transform: scale(1) rotate(0); } 40% { transform: scale(1.35) rotate(20deg); } 100% { transform: scale(1.1) rotate(0); } }
+@keyframes nav-bob { 0%, 100% { transform: translateY(0); } 35% { transform: translateY(-4px); } 65% { transform: translateY(1px); } }
+@keyframes nav-swap { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(3px); } 60% { transform: translateX(-3px); } }
+@keyframes nav-beat { 0%, 100% { transform: scale(1); } 20% { transform: scale(1.25); } 40% { transform: scale(.95); } 60% { transform: scale(1.15); } }
+@keyframes nav-lift { 0% { transform: none; } 50% { transform: translateY(-4px) rotate(-6deg); } 100% { transform: translateY(-1px); } }
+@keyframes nav-tilt { 0%, 100% { transform: none; } 40% { transform: rotate(-12deg) translateX(-1px); } 70% { transform: rotate(5deg); } }
+@media (prefers-reduced-motion: reduce) { .navpill, .navdot, .navkbd { transition: none; } .navitem { transform: none !important; margin-inline: 0 !important; } .navitem .navicon { animation: none !important; } }
+
+/* Landing page reveal (the one page that is read rather than worked in). Transform and opacity only. */
+.reveal-on [data-reveal] { transition: opacity .7s var(--ease-out-quart), transform .7s var(--ease-out-quart); transition-delay: var(--d, 0ms); }
+.reveal-on [data-reveal]:not([data-shown]) { opacity: 0; transform: translateY(24px); }
+@media (prefers-reduced-motion: reduce) { .reveal-on [data-reveal] { opacity: 1 !important; transform: none !important; } }
+
+/* ---------------------------------------------------------------- landing poster */
+.font-poster { font-family: var(--font-anton), "Arial Narrow", Impact, sans-serif; font-weight: 400; }
+/* The admit-one ticket: square corners with scalloped top and bottom edges. */
+.ticket {
+  --r: 9px; --gap: 26px;
+  -webkit-mask: radial-gradient(circle var(--r) at 50% 0, #0000 98%, #000) 50% 0 / var(--gap) 51% repeat-x,
+                radial-gradient(circle var(--r) at 50% 100%, #0000 98%, #000) 50% 100% / var(--gap) 51% repeat-x;
+          mask: radial-gradient(circle var(--r) at 50% 0, #0000 98%, #000) 50% 0 / var(--gap) 51% repeat-x,
+                radial-gradient(circle var(--r) at 50% 100%, #0000 98%, #000) 50% 100% / var(--gap) 51% repeat-x;
+}
+/* Signature move: the arch picture opens like a shutter from the seam while the scene settles from 1.12. */
+@keyframes shutter { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes settle { from { transform: scale(1.12); } to { transform: none; } }
+@keyframes poster-in { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+.arch-shutter > div { animation: shutter 1.1s cubic-bezier(.7, 0, .2, 1) .15s both; }
+.arch-img { animation: settle 1.6s var(--ease-out-quart) .15s both; transform-origin: 50% 60%; }
+.poster-line { animation: poster-in .8s var(--ease-out-quart) both; }
+@media (prefers-reduced-motion: reduce) { .arch-shutter > div, .arch-img, .poster-line { animation: none !important; } }

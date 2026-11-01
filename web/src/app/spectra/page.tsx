@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/AppShell";
 import { Badge, Button, Card, Empty, ErrorBox, PageHead, Spinner, useBusy } from "@/components/ui";
-import { api, type BookingRow } from "@/lib/api";
+import { api, DAY_NAME, type BookingRow } from "@/lib/api";
 import { periodStart, plain, roomNames, when } from "@/lib/plain";
+
+const endOf = (p: number) => { const h = (p <= 5 ? 7 + p : 8 + p) + 1; return h === 12 ? "12 pm" : h > 12 ? `${h - 12} pm` : `${h} am`; };
 
 type Bookings = { rows: BookingRow[]; score: number; max_score: number; overrides: { session_id: string; day: string; start_period: number; room_id: string; displaced_by: string }[]; priority_order: string[] };
 type Filter = "all" | "mine" | "pending" | "approved" | "alternative_offered" | "rejected";
@@ -26,13 +28,13 @@ export default function SpectraPage() {
     if (filter === "all") return true;
     if (filter === "mine") return r.mine;
     if (filter === "pending") return r.state === "pending";
-    return r.decision?.status === filter && r.state !== "pending";
+    return r.decision?.status === filter && r.state !== "pending" && r.state !== "cancelled";
   }), [data, filter]);
 
   const names = useMemo(() => roomNames(meta?.rooms), [meta]);
   if (!data) return <Spinner />;
   const act = (path: string, body: object = {}) => run(async () => { await api(path, body); await load(); await refresh(); });
-  const count = (s: string) => data.rows.filter((r) => r.decision?.status === s && r.state !== "pending").length;
+  const count = (s: string) => data.rows.filter((r) => r.decision?.status === s && r.state !== "pending" && r.state !== "cancelled").length;
   const isAdmin = user?.role === "admin";
   const decided = data.rows.filter((r) => r.state === "decided").length;
 
@@ -51,9 +53,9 @@ export default function SpectraPage() {
 
       <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-3">
         <ul className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-ink-2">
-          <li className="flex items-center gap-2"><b className="text-[20px] font-semibold text-ok tabular">{count("approved")}</b>confirmed</li>
-          <li className="flex items-center gap-2"><b className="text-[20px] font-semibold text-warn tabular">{count("alternative_offered")}</b>offered a nearby slot</li>
-          <li className="flex items-center gap-2"><b className="text-[20px] font-semibold text-bad tabular">{data.rows.filter((r) => r.state === "decided" && r.decision?.status === "rejected").length}</b>declined, each with the reason</li>
+          <li className="flex items-baseline gap-2"><b className="text-[24px] font-normal text-ok tabular">{count("approved")}</b>confirmed</li>
+          <li className="flex items-baseline gap-2"><b className="text-[24px] font-normal text-warn tabular">{count("alternative_offered")}</b>offered a nearby slot</li>
+          <li className="flex items-baseline gap-2"><b className="text-[24px] font-normal text-bad tabular">{data.rows.filter((r) => r.state === "decided" && r.decision?.status === "rejected").length}</b>declined, each with the reason</li>
         </ul>
         <div className="seg ml-auto max-w-full overflow-x-auto">
           {FILTERS.map(([f, label]) => (
@@ -66,7 +68,7 @@ export default function SpectraPage() {
 
       {rows.length === 0 ? <Empty title={filter === "pending" ? "Nothing waiting for approval" : filter === "mine" ? "You haven't asked for a venue yet" : "No requests match this filter"}>{filter === "mine" ? "Ask for a room in plain English or Hinglish and it shows up here with its decision." : "Pick Everything to see every Spectra request and where it landed."}</Empty> : (
         <div className="glass overflow-hidden rounded-[16px]">
-          <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.8fr)_auto] gap-4 border-b border-rule px-5 py-2.5 text-[12px] font-medium text-ink-3 lg:grid">
+          <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1.8fr)_auto] gap-4 border-b border-rule px-5 py-2.5 text-[13px] font-medium text-ink-3 lg:grid">
             <span>Event</span><span>Venue and time</span><span>Why</span><span className="w-[150px] text-right">Action</span>
           </div>
           {rows.map((r) => {
@@ -79,12 +81,12 @@ export default function SpectraPage() {
                   <div className="flex min-w-0 gap-3">
                     <div className="min-w-0">
                       <h3 className="text-[15px] font-semibold leading-snug">{r.request.title}</h3>
-                      <div className="mt-0.5 text-[12px] text-ink-3"><span className={`blk-tag mr-1.5 ${CAT_TONE[r.effective_category] ?? ""}`} aria-hidden />{r.category_label} · {r.request.requester} · {r.request.attendance} people</div>
-                      {r.effective_category !== r.request.requested_category && <div className="mt-0.5 text-[12px] text-warn">Asked to be treated as {(meta?.category_label[r.request.requested_category] ?? r.request.requested_category).toLowerCase()}</div>}
+                      <div className="mt-0.5 text-[13px] text-ink-3"><span className={`blk-tag mr-1.5 ${CAT_TONE[r.effective_category] ?? ""}`} aria-hidden />{r.category_label} · {r.request.requester} · {r.request.attendance} people</div>
+                      {r.effective_category !== r.request.requested_category && <div className="mt-0.5 text-[13px] text-warn">Asked to be treated as {(meta?.category_label[r.request.requested_category] ?? r.request.requested_category).toLowerCase()}</div>}
                     </div>
                   </div>
                   <div className="text-[14px]">
-                    <div className="mb-1"><Badge s={status} />{r.confirmed && <span className="ml-2 text-[12px] text-ok">approver confirmed</span>}</div>
+                    <div className="mb-1"><Badge s={status} />{r.confirmed && <span className="ml-2 text-[13px] text-ok">approver confirmed</span>}</div>
                     {d?.room_id ? <><div className="font-medium">{names[d.room_id] ?? d.room_id}</div><div className="text-[13px] text-ink-2">{when(r.when)}</div></> : <div className="text-[13px] text-ink-3">No venue</div>}
                   </div>
                   <div className="text-[13px] leading-relaxed text-ink-2">
@@ -106,10 +108,10 @@ export default function SpectraPage() {
                 </div>
                 {open === id && (
                   <dl className="pop mt-3 grid gap-x-6 gap-y-1.5 rounded-[12px] bg-fill-2 p-4 text-[13px] text-ink-2 sm:grid-cols-[120px_1fr]">
-                    <dt className="text-ink-3">Asked for</dt><dd>{r.request.windows.map((w) => `${w.day.slice(0, 1)}${w.day.slice(1).toLowerCase()} ${periodStart(w.from_period)} to ${periodStart(w.to_period + 1)}`).join(", ")}</dd>
+                    <dt className="text-ink-3">Times that suited them</dt><dd>{r.request.windows.map((w) => `${w.day.slice(0, 1)}${w.day.slice(1).toLowerCase()} ${periodStart(w.from_period)} to ${endOf(w.to_period)}`).join(", ")}</dd>
                     <dt className="text-ink-3">Kind of venue</dt><dd>{r.request.room_types.map((t) => t.replaceAll("_", " ")).join(", ")}{r.request.requested_room && ` · asked for ${names[r.request.requested_room] ?? r.request.requested_room}`}</dd>
                     <dt className="text-ink-3">Needs</dt><dd>{r.request.needs.join(", ").replaceAll("_", " ") || "Nothing special"}</dd>
-                    {r.request.mandatory_for_groups.length > 0 && <><dt className="text-ink-3">Compulsory for</dt><dd>{r.request.mandatory_for_groups.join(", ")}</dd></>}
+                    {(r.request.mandatory_for_groups.length > 0 || (r.request.attending_faculty ?? []).length > 0) && <><dt className="text-ink-3">Attending</dt><dd>{[...r.request.mandatory_for_groups, ...(r.request.attending_faculty ?? []).map((f) => meta?.faculty.find((x) => x.id === f)?.name ?? f)].join(", ")}</dd></>}
                     {r.explain.rank && <><dt className="text-ink-3">Place in queue</dt><dd>Number {r.explain.rank} in the priority order</dd></>}
                     {(r.explain.notes ?? []).concat(r.explain.blocked_by ?? []).map((n) => <dd key={n} className="sm:col-start-2">{plain(n, names, false)}</dd>)}
                     {r.request.raw_text && <><dt className="text-ink-3">Original message</dt><dd className="italic">&ldquo;{r.request.raw_text}&rdquo;</dd></>}
@@ -122,7 +124,7 @@ export default function SpectraPage() {
       )}
       {data.overrides.length > 0 && (
         <Card title="Classes that step aside" note="Fest week only. Each class moves back the week after." className="mt-6">
-          <ul className="text-sm">{data.overrides.map((o) => <li key={o.session_id}>{o.session_id} moves to {o.day} {periodStart(o.start_period)}, {names[o.room_id] ?? o.room_id}, for {o.displaced_by}</li>)}</ul>
+          <ul className="text-sm">{data.overrides.map((o) => <li key={o.session_id}><b>{o.session_id.split("-")[0]}</b> moves to {DAY_NAME[o.day] ?? o.day} {periodStart(o.start_period)}, {names[o.room_id] ?? o.room_id}, for {data.rows.find((r) => r.request.id === o.displaced_by)?.request.title ?? o.displaced_by}</li>)}</ul>
         </Card>
       )}
     </div>

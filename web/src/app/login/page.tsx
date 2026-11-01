@@ -1,18 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { api, DAY_NAME } from "@/lib/api";
 import { ROLE_LABEL, USERS } from "@/lib/users";
 
-/* Landing page. One idea: show the real plan on the first screen.
-   Left: what CrunchWeek is, and the way in. Right: the live Week 7 venue board from the engine. */
+/* Landing page, dressed as a fest poster (taste-skill direction "Dressed as something else").
+   On this page, Week 7's clash of classes, midsems and Spectra becomes a gig poster whose venues the planner books.
+   Poster hero on a vermilion field -> the live venue board -> one real request through four colour fields
+   -> the Spectra line-up -> sign-in as an "Admit one" ticket -> the name, edge to edge. */
 
 type Period = { id: number; start: string; end: string };
 type Room = { id: string; name: string; capacity: number };
 type Session = { session_id: string; course_id: string; title: string; kind: string; groups: string[]; faculty_name: string; day: string; start_period: number; duration: number; room_id: string };
 type Event = { request_id: string; status: string; day: string; start_period: number; end_period: number; room_id: string; reason: string; title: string; requester: string; category: string };
-type Row = { request: { id: string; title: string; requester: string; attendance: number }; decision: { status: string; reason: string; room_id?: string } | null; state: string; category_label: string; when?: string };
+type Row = { request: { id: string; title: string; requester: string; attendance: number; requested_room: string | null; windows: { day: string; from_period: number; to_period: number }[] }; decision: { status: string; reason: string; room_id?: string; day?: string; start_period?: number; end_period?: number } | null; state: string; category_label: string; when?: string; explain?: { rank?: number } };
 type Status = { sessions: number; total_sessions: number; hard_violations: number | null; approved: number; alternatives: number; rejected: number; exams: number; solve: { seconds?: number; exam_seconds?: number } };
 
 type Data = { periods: Period[]; rooms: Record<string, Room>; sessions: Session[]; events: Event[]; rows: Row[]; status: Status };
@@ -42,6 +44,7 @@ const hm = (t: string) => { const [h, m] = t.split(":").map(Number); return `${h
 
 const isSpectra = (e: Event) => e.category === "institute_event";
 
+
 export default function LoginPage() {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -58,12 +61,14 @@ export default function LoginPage() {
       NAMES.rooms = Object.fromEntries(m.rooms.map((r) => [r.id, r.name]));
       NAMES.ends = Object.fromEntries(m.calendar.periods.map((p) => [p.id, p.end]));
       setData({
-      periods: m.calendar.periods.filter((p) => p.id <= 13),
-      rooms: Object.fromEntries(m.rooms.map((r) => [r.id, r])),
-      sessions: t.sessions, events: t.events, rows: b.rows, status: s,
+        periods: m.calendar.periods.filter((p) => p.id <= 13),
+        rooms: Object.fromEntries(m.rooms.map((r) => [r.id, r])),
+        sessions: t.sessions, events: t.events, rows: b.rows, status: s,
       });
     }).catch(() => setDown(true));
   }, []);
+
+  useReveal();
 
   const signIn = async (username: string) => {
     setBusy(username);
@@ -72,74 +77,46 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-paper">
-      <Header />
-
-      <main className="mx-auto max-w-[1280px] px-5 lg:px-8">
-        <section className="grid gap-8 pb-16 pt-8 lg:grid-cols-12 lg:gap-10 lg:pt-12">
-          {/* Left: what it is, and the way in. */}
-          <div className="min-w-0 lg:col-span-4">
-            <h1 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.025em] sm:text-[40px]">
-              Classes, midsems and fest events. One plan, no clashes.
-            </h1>
-            <p className="mt-4 text-[15px] leading-[1.6] text-ink-2">
-              CrunchWeek builds CIT&apos;s timetable, schedules the midsems and decides Spectra venue requests by the institute&apos;s
-              priority order. If a room is taken, you get the reason and the nearest free option.
-            </p>
-            <p className="mt-3 flex items-center gap-2 text-[13px] font-medium text-ink-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-jade" aria-hidden /> Spectra &apos;27 · Week 7 is planned
-            </p>
-
-            <div id="desks" className="mt-8 scroll-mt-20">
-              <div className="flex items-baseline justify-between">
-                <h2 className="text-[15px] font-semibold">Sign in</h2>
-                <span className="text-[13px] text-ink-3">Demo accounts, no password</span>
-              </div>
-              <ul className="mt-3 overflow-hidden rounded-[14px] bg-sheet shadow-[var(--shadow-card)]">
-                {USERS.map((u, i) => (
-                  <li key={u.username} className={i ? "border-t border-rule" : ""}>
-                    <button onClick={() => signIn(u.username)} disabled={busy !== null}
-                      className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-fill-2 disabled:opacity-60">
-                      <Avatar name={u.name} i={i} />
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-2 text-[15px] font-medium"><span className="truncate">{u.name}</span>
-                          <span className="shrink-0 whitespace-nowrap rounded-full bg-fill px-2 py-px text-[12px] font-medium text-ink-2">{ROLE_LABEL[u.role]}</span>
-                        </span>
-                        <span className="block truncate text-[13px] text-ink-3">{u.blurb}</span>
-                      </span>
-                      {busy === u.username
-                        ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink-3/30 border-t-accent" />
-                        : <svg viewBox="0 0 16 16" className="h-4 w-4 text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-accent" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m6 3 5 5-5 5" /></svg>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+    <div className="poster min-h-screen overflow-x-clip bg-paper">
+      <Hero />
+      <main>
+        <section id="board" aria-labelledby="board-h" className="scroll-mt-4 bg-lake px-5 py-24 text-white sm:px-10 lg:py-32">
+          <div className="mx-auto max-w-[1280px]">
+            <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
+              <h2 id="board-h" data-reveal className="font-poster text-[clamp(56px,8vw,120px)] uppercase leading-[0.86]">The board,<br />live</h2>
+              <p data-reveal className="max-w-[40ch] text-[18px] leading-relaxed">Spectra week as the planner sees it right now. Pick a day, then any block, to see who got the room and why.</p>
             </div>
-          </div>
-
-          {/* Right: the live board. */}
-          <div className="min-w-0 lg:col-span-8">
-            <VenueBoard data={data} down={down} />
+            <div data-reveal><VenueBoard data={data} down={down} /></div>
           </div>
         </section>
-
-        <HowItWorks data={data} />
-        <Decisions data={data} />
+        <HowItDecides data={data} />
+        <LineUp data={data} />
+        <Desks busy={busy} onPick={signIn} />
       </main>
-
-      <footer className="border-t border-rule">
-        <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-3 px-5 py-6 text-[13px] text-ink-3 lg:px-8">
-          <span>CrunchWeek · Chilika Institute of Technology</span>
-          <span>Timetable and venues planned with Google OR-Tools</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
 
-/* ───────────────────────────── Header ───────────────────────────── */
+/** Section parts rise into place as they reach the screen (heading, then text, then the fragment).
+    Without script, or with reduced motion, everything is simply visible. */
+function useReveal() {
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const root = document.documentElement;
+    root.classList.add("reveal-on");
+    const io = new IntersectionObserver((es) => {
+      for (const e of es) if (e.isIntersecting) { (e.target as HTMLElement).dataset.shown = ""; io.unobserve(e.target); }
+    }, { rootMargin: "0px 0px -8% 0px" });
+    const els = [...document.querySelectorAll<HTMLElement>("[data-reveal]")];
+    els.forEach((el) => { const sib = [...(el.closest("section, footer, article")?.querySelectorAll("[data-reveal]") ?? [])]; el.style.setProperty("--d", `${Math.min(sib.indexOf(el), 5) * 75}ms`); io.observe(el); });
+    return () => { io.disconnect(); root.classList.remove("reveal-on"); };
+  }, []);
+}
 
-function Header() {
+/* ───────────────────────────── Hero: the poster ───────────────────────────── */
+
+function Hero() {
   const [flip, setFlip] = useState(0);
   const dark = useSyncExternalStore(
     (cb) => { const m = matchMedia("(prefers-color-scheme: dark)"); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); },
@@ -153,41 +130,202 @@ function Header() {
     setFlip((x) => x + 1);
   };
   return (
-    <header className="material sticky top-0 z-30 border-b border-rule">
-      <div className="mx-auto flex h-14 max-w-[1280px] items-center gap-3 px-5 lg:px-8">
-        <Logo />
-        <span className="text-[15px] font-semibold tracking-[-0.01em]">CrunchWeek</span>
-        <span className="hidden text-[13px] text-ink-3 sm:inline">Chilika Institute of Technology</span>
-        <nav className="ml-auto flex items-center gap-1 text-[14px]">
-          <a href="#how" className="hidden rounded-full px-3 py-1.5 text-ink-2 transition-colors hover:bg-fill hover:text-ink sm:block">How it works</a>
-          <a href="#decisions" className="hidden rounded-full px-3 py-1.5 text-ink-2 transition-colors hover:bg-fill hover:text-ink sm:block">Spectra requests</a>
-          <button onClick={toggle} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
-            className="grid h-9 w-9 place-items-center rounded-full text-ink-2 transition-colors hover:bg-fill hover:text-ink">
+    <header className="relative grid min-h-[720px] grid-rows-[1fr_auto] overflow-hidden [height:100svh] max-h-[1000px]">
+      <div className="relative bg-[#c0330f] text-[#f7f9f8]">
+        <nav aria-label="Page" className="relative z-20 flex h-[72px] items-center gap-6 px-5 text-[15px] font-semibold sm:px-10">
+          <span className="font-poster mr-auto text-[26px] uppercase tracking-[0.01em]">CrunchWeek</span>
+          <a href="#board" className="hidden underline-offset-4 hover:underline md:block">The board</a>
+          <a href="#how" className="hidden underline-offset-4 hover:underline md:block">How it decides</a>
+          <a href="#lineup" className="hidden underline-offset-4 hover:underline md:block">Line-up</a>
+          <button onClick={toggle} aria-label={dark ? "Switch to light mode" : "Switch to dark mode"} className="grid h-9 w-9 place-items-center rounded-full transition-colors hover:bg-white/15">
             {dark
               ? <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="10" cy="10" r="3.5" /><path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.3 4.3l1.4 1.4M14.3 14.3l1.4 1.4M4.3 15.7l1.4-1.4M14.3 5.7l1.4-1.4" /></svg>
               : <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M16.5 12.5A7 7 0 0 1 7.5 3.5a7 7 0 1 0 9 9Z" /></svg>}
           </button>
-          <a href="#desks" className="ml-1 rounded-full bg-accent px-4 py-1.5 font-medium text-white transition hover:brightness-110 lg:hidden">Sign in</a>
         </nav>
+        <h1 className="font-poster relative z-10 px-5 pt-[9vh] text-[19vw] uppercase leading-[0.84] tracking-[-0.01em] sm:px-10 md:text-[min(12.5vw,190px)]">
+          <span className="poster-line block">Week 7.</span>
+          <span className="poster-line block [animation-delay:90ms]">No clashes.</span>
+        </h1>
+        <ArchScene />
+      </div>
+      <div className="relative z-10 flex flex-col gap-5 bg-[#0e1a1d] px-5 py-7 text-[#f7f9f8] sm:flex-row sm:items-center sm:justify-between sm:px-10">
+        <p className="max-w-[46ch] text-[18px] leading-[1.5] sm:text-[20px]">CrunchWeek plans CIT&apos;s classes, midsems and every Spectra venue as one week. If a room is taken, you get the reason and the next free slot.</p>
+        <a href="#desks" className="inline-flex shrink-0 items-center justify-center gap-2 bg-[#f7f9f8] px-7 py-4 text-[17px] font-semibold text-[#c0330f] transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-0">Pick your desk <span aria-hidden>→</span></a>
       </div>
     </header>
   );
 }
 
-/** Two rounded squares, the second offset: a booking that found its own slot. */
-function Logo() {
+/** Chilika at first light, drawn flat in the palette's own colours (no photograph of the lake could be fetched for this build).
+    Cut into an arch and stuck on the poster at an angle, straddling the seam. */
+function ArchScene() {
   return (
-    <span className="relative block h-6 w-6" aria-hidden>
-      <span className="absolute left-0 top-0 h-4 w-4 rounded-[4px] border-[1.5px] border-ink" />
-      <span className="absolute bottom-0 right-0 h-4 w-4 rounded-[4px] bg-accent" />
-    </span>
+    <figure aria-label="Drawing: sunrise over Chilika lake, with a fishing boat" className="arch-shutter pointer-events-none absolute bottom-[-56px] right-[-18vw] z-0 w-[62vw] rotate-[5deg] sm:right-[4vw] sm:w-[27vw] md:bottom-[-64px]">
+      <div className="aspect-[3/4] overflow-hidden rounded-t-[999px]">
+        <svg viewBox="0 0 300 400" className="arch-img h-full w-full" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden>
+          <rect width="300" height="400" fill="#f1b25a" />
+          <rect y="0" width="300" height="70" fill="#f7c873" />
+          <circle cx="150" cy="205" r="62" fill="#fbe6b4" />
+          <rect y="205" width="300" height="195" fill="#23788a" />
+          <rect y="232" width="300" height="10" fill="#6cc7d1" opacity=".55" />
+          <rect y="258" width="300" height="7" fill="#6cc7d1" opacity=".45" />
+          <rect y="282" width="300" height="5" fill="#6cc7d1" opacity=".35" />
+          <rect x="88" y="214" width="124" height="5" fill="#fbe6b4" opacity=".8" />
+          <rect x="106" y="226" width="88" height="4" fill="#fbe6b4" opacity=".6" />
+          <path d="M0 205 L40 188 L78 199 L120 186 L150 196 L190 184 L236 198 L270 190 L300 197 L300 205 Z" fill="#146547" />
+          <g fill="#0e1a1d">
+            <path d="M60 318 h120 l-14 18 h-92 z" />
+            <rect x="118" y="262" width="3" height="58" />
+            <path d="M121 266 L156 312 L121 312 z" />
+            <path d="M206 300 q14 -14 28 0 q-14 6 -28 0z" opacity=".85" />
+          </g>
+          <path d="M0 352 q75 -10 150 0 t150 0 V400 H0z" fill="#0e3c46" />
+        </svg>
+      </div>
+    </figure>
   );
 }
 
-const AVATAR = ["bg-accent", "bg-brass", "bg-jade", "bg-dusk", "bg-lake"];
+/* ───────────────────────────── How it decides: one real request, four fields ───────────────────────────── */
+
+function HowItDecides({ data }: { data: Data | null }) {
+  // The most telling real request: one that was moved to a free venue, else the first confirmed one.
+  const rows = (data?.rows ?? []).filter((r) => r.state === "decided");
+  const r = rows.find((x) => x.decision?.status === "alternative_offered") ?? rows.find((x) => /went to/.test(x.decision?.reason ?? "")) ?? rows[0];
+  const room = (id?: string | null) => (id ? data?.rooms[id]?.name ?? id : null);
+  const w = r?.request.windows[0];
+  const asked = w ? `${SHORT[w.day] ?? w.day} ${hm(NAMES.ends[w.from_period - 1] ?? "8:00")}` : "";
+  const why = r?.decision ? plain(r.decision.reason) : "";
+  const fields = [
+    { bg: "bg-[#23788a] text-white", clause: "First the request lands.", body: r && <><p>{r.request.requester} · {r.request.attendance} people</p><p className="mt-1">Asked for {room(r.request.requested_room) ?? "any big hall"}{asked ? `, ${asked}` : ""}</p></> },
+    { bg: "bg-[#e8b54d] text-[#0e1a1d]", clause: "Then it takes its place in line.", body: r && <><p>{r.category_label}</p><p className="mt-2"><span className="rounded-full bg-[#f6e3b5] px-2.5 py-0.5 text-[13px] font-semibold text-[#74500a]">{r.explain?.rank ? `Number ${r.explain.rank} in the priority order` : "Checked against the priority order"}</span></p></> },
+    { bg: "bg-[#6cc7d1] text-[#0e1a1d]", clause: "Then the planner finds a room.", body: r && <><p>{why.split(". ").slice(0, 2).join(". ")}</p><p className="mt-2 font-semibold">{room(r.decision?.room_id) ?? "No room fits"}</p></> },
+    { bg: "bg-[#5fd3a8] text-[#0e1a1d]", clause: "Last, everyone hears why.", body: r && <><p className="font-semibold">{room(r.decision?.room_id) ?? "Declined"}{r.when ? ` · ${r.when.replace(/\s*\(P\d+(?:-P\d+)?\)/, "")}` : ""}</p><p className="mt-2"><span className="rounded-full bg-[#d4f2e6] px-2.5 py-0.5 text-[13px] font-semibold text-[#146547]">{r.decision?.status === "rejected" ? "Declined, with the reason" : "Confirmed, with the reason"}</span></p></> },
+  ];
+  return (
+    <section id="how" aria-labelledby="how-h" className="grid scroll-mt-4 md:grid-cols-2 xl:grid-cols-4">
+      {fields.map((f, i) => (
+        <article key={f.clause} className={`group relative flex min-h-[520px] flex-col justify-between gap-8 p-6 xl:min-h-[78svh] ${f.bg}`}>
+          <div>{i === 0 ? <h2 id="how-h" data-reveal className="font-poster text-[clamp(52px,5.4vw,84px)] uppercase leading-[0.86]">How it<br />decides</h2> : <span className="hidden h-[clamp(90px,9.3vw,145px)] xl:block" />}</div>
+          <div data-ui data-reveal className="mx-auto min-h-[200px] w-full max-w-[320px] rounded-[8px] bg-[#f7f9f8] p-5 text-[15px] leading-snug text-[#0e1a1d] transition-transform duration-150 group-hover:-translate-y-1.5">
+            <div className="text-[16px] font-semibold">{r?.request.title ?? "Loading a real request…"}</div>
+            <div className="mt-1.5 text-[#3f4b4c]">{f.body}</div>
+          </div>
+          <p data-reveal className="font-poster text-[clamp(28px,2.5vw,38px)] uppercase leading-[0.95]">{f.clause}</p>
+        </article>
+      ))}
+    </section>
+  );
+}
+
+/* ───────────────────────────── The Spectra line-up ───────────────────────────── */
+
+function LineUp({ data }: { data: Data | null }) {
+  const [all, setAll] = useState(false);
+  const rows = (data?.rows ?? []).filter((r) => r.state !== "cancelled");
+  const order = (r: Row) => (r.decision?.day ? DAYS.indexOf(r.decision.day) * 100 + (r.decision.start_period ?? 0) : 999);
+  const sorted = [...rows].sort((a, b) => order(a) - order(b));
+  const shown = all ? sorted : sorted.slice(0, 10);
+  const groupOf = (r: Row) => (r.decision?.day ? SHORT[r.decision.day] : "No venue");
+  const tone = (st?: string) => (st === "approved" ? "text-ok" : st === "rejected" ? "text-bad" : "text-warn");
+  const word = (st?: string) => (st === "approved" ? "Confirmed" : st === "rejected" ? "Declined, with the reason" : "Moved to a free venue");
+  const n = (st: string) => rows.filter((r) => r.decision?.status === st).length;
+  return (
+    <section id="lineup" aria-labelledby="lineup-h" className="scroll-mt-4 px-5 py-28 sm:px-10 lg:py-40">
+      <div className="mx-auto max-w-[1280px]">
+        <div className="flex flex-wrap items-end justify-between gap-8">
+          <h2 id="lineup-h" data-reveal className="font-poster text-[clamp(64px,10vw,150px)] uppercase leading-[0.86] text-accent">The Spectra<span className="block pl-[16%]">line-up</span></h2>
+          <p data-reveal className="max-w-[34ch] text-[18px] leading-relaxed text-ink">{data ? `${rows.length} requests: ${n("approved")} confirmed, ${n("alternative_offered")} moved to a free venue, ${n("rejected")} declined with the reason.` : "Every request and where it landed."}</p>
+        </div>
+        <table data-ui data-reveal className="mt-16 w-full border-collapse text-[16px] sm:text-[17px]">
+          <caption className="sr-only">Every Spectra venue request, by day</caption>
+          <thead className="sr-only"><tr><th>Day</th><th>Event</th><th>Venue and time</th><th>Decision</th></tr></thead>
+          <tbody>
+            {!data ? <tr><td className="py-6 text-ink-2">Loading the line-up…</td></tr> : shown.map((r, i) => {
+              const g = groupOf(r);
+              const first = i === 0 || groupOf(shown[i - 1]) !== g;
+              return (
+                <Fragment key={r.request.id}>
+                {first && i > 0 && <tr aria-hidden className="h-8"><td colSpan={4} /></tr>}
+                <tr className={`align-baseline ${i % 2 ? "" : "bg-[color-mix(in_srgb,var(--label)_6%,transparent)]"}`}>
+                  <td className="font-poster w-[90px] py-3.5 pl-3 text-[24px] uppercase leading-none sm:w-[120px] sm:text-[28px]">{first ? g : ""}</td>
+                  <td className="py-3.5 pr-4"><span className="font-semibold">{r.request.title}</span><span className="block text-[14px] text-ink-2">{r.request.requester} · {r.category_label}</span></td>
+                  <td className="hidden py-3.5 pr-4 text-ink-2 md:table-cell">{r.decision?.room_id ? `${data.rooms[r.decision.room_id]?.name ?? r.decision.room_id} · ${(r.when ?? "").replace(/\s*\(P\d+(?:-P\d+)?\)/, "").replace(/^\w+ /, "")}` : "No venue fits"}</td>
+                  <td className={`py-3.5 pr-3 text-right font-semibold ${tone(r.decision?.status)}`}>{word(r.decision?.status)}</td>
+                </tr>
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+        {data && sorted.length > 10 && (
+          <button onClick={() => setAll(!all)} className="mt-6 bg-ink px-6 py-3.5 text-[16px] font-semibold text-paper transition-transform duration-150 hover:-translate-y-0.5">
+            {all ? "Show fewer" : `Show all ${sorted.length}`}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* ───────────────────────────── Sign in: the admit-one ticket ───────────────────────────── */
+
+function Desks({ busy, onPick }: { busy: string | null; onPick: (u: string) => void }) {
+  return (
+    <section id="desks" aria-labelledby="desks-h" className="scroll-mt-4 bg-[#23788a] px-5 py-24 sm:px-10 lg:py-36">
+      <div className="mx-auto grid max-w-[1280px] items-center gap-12 lg:grid-cols-12">
+        <div className="lg:col-span-5">
+          <h2 id="desks-h" data-reveal className="font-poster text-[clamp(64px,9vw,128px)] uppercase leading-[0.86] text-[#e8b54d]">Pick your<br />desk</h2>
+          <p data-reveal className="mt-8 max-w-[30ch] text-[20px] leading-relaxed text-white">Five demo accounts, no password. Each one sees Week 7 the way that person would.</p>
+        </div>
+        <div data-ui data-reveal className="ticket mx-auto w-full min-w-0 max-w-[620px] rotate-[-1.5deg] bg-[#f7f9f8] px-6 py-12 text-[#0e1a1d] sm:px-14 lg:col-span-7 lg:col-start-7">
+          <p className="font-poster text-center text-[clamp(44px,5vw,64px)] uppercase leading-none">Admit one</p>
+          <p className="mt-2 text-center text-[15px] text-[#3f4b4c]">CrunchWeek · Spectra &apos;27 · Week 7</p>
+          <ul className="mt-8 space-y-1">
+            {USERS.map((u, i) => (
+              <li key={u.username}>
+                <button onClick={() => onPick(u.username)} disabled={busy !== null}
+                  className="group flex w-full items-center gap-4 rounded-[6px] px-3 py-3 text-left transition-colors duration-150 hover:bg-[#ece7da] disabled:opacity-60">
+                  <Avatar name={u.name} i={i} />
+                  <span className="min-w-0 flex-1"><span className="block truncate text-[17px] font-semibold">{u.name}</span><span className="block truncate text-[14px] text-[#3f4b4c]">{u.blurb}</span></span>
+                  {busy === u.username
+                    ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#0e1a1d]/30 border-t-[#c0330f]" />
+                    : <span className="shrink-0 text-[15px] font-semibold text-[#c0330f] transition-transform duration-150 group-hover:translate-x-1">{ROLE_LABEL[u.role]} →</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ───────────────────────────── Footer: the name, edge to edge ───────────────────────────── */
+
+function Footer() {
+  return (
+    <footer className="grid min-h-[80svh] grid-rows-[auto_1fr_auto] bg-[#0e1a1d] px-5 pb-6 pt-12 text-[#f7f9f8] sm:px-10">
+      <div className="mx-auto grid w-full max-w-[1280px] grid-cols-2 gap-8 text-[16px] md:grid-cols-4">
+        <div><p className="font-semibold">Chilika Institute of Technology</p><p className="opacity-70">Odisha · about 1,000 students, five branches</p></div>
+        <div><p className="font-semibold">On this page</p><a href="#board" className="block opacity-70 hover:opacity-100">The board</a><a href="#how" className="block opacity-70 hover:opacity-100">How it decides</a><a href="#lineup" className="block opacity-70 hover:opacity-100">Line-up</a></div>
+        <div><p className="font-semibold">How it is planned</p><p className="opacity-70">Google OR-Tools, checked by the organisers&apos; own validator</p></div>
+        <div><p className="font-semibold">Picture</p><p className="opacity-70">Chilika at first light, drawn for this page</p></div>
+      </div>
+      <span />
+      <div>
+        <p aria-hidden className="font-poster whitespace-nowrap text-center text-[18.6vw] uppercase leading-[0.8] text-[#c0330f]">CrunchWeek</p>
+        <p className="mt-4 text-[13px] opacity-60">CrunchWeek for Spectra &apos;27. A demo build: sign in from any desk above.</p>
+      </div>
+    </footer>
+  );
+}
+
+const AVATAR = ["bg-[#fbe1d8] text-[#a32b0c]", "bg-[#f6e3b5] text-[#74500a]", "bg-[#d4f2e6] text-[#146547]", "bg-[#d5eef1] text-[#1d6676]", "bg-[#e3e7e6] text-[#0e1a1d]"];
 function Avatar({ name, i }: { name: string; i: number }) {
   const ini = name.replace(/[^A-Za-z ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((w) => w[0]).join("");
-  return <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-[13px] font-semibold text-white ${AVATAR[i % 5]}`}>{ini}</span>;
+  return <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-[14px] font-semibold ${AVATAR[i % 5]}`}>{ini}</span>;
 }
 
 /* ───────────────────────────── Venue board ───────────────────────────── */
@@ -229,7 +367,7 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
   const live = (data?.rows ?? []).filter((r) => r.state !== "cancelled");
 
   return (
-    <section aria-label="Week 7 venue board" className="overflow-hidden rounded-[18px] bg-sheet shadow-[var(--shadow-card)]">
+    <section data-ui aria-label="Week 7 venue board" className="overflow-hidden rounded-[6px] bg-sheet text-ink">
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 pt-5">
         <div>
           <h2 className="text-[17px] font-semibold tracking-[-0.01em]">Week 7 venue board</h2>
@@ -255,10 +393,10 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
           <button key={d} role="tab" aria-selected={d === day} onClick={() => { setDay(d); setSel(null); }}
             className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors duration-150 ${d === day ? "bg-ink text-paper" : "text-ink-2 hover:bg-fill"}`}>
             {SHORT[d]}
-            {data && <span className={`tabular rounded-full px-1.5 text-[12px] ${d === day ? "bg-paper/20" : "bg-fill"}`}>{counts[d]}</span>}
+            {data && <span className={`tabular rounded-full px-1.5 text-[13px] ${d === day ? "bg-paper/20" : "bg-fill"}`}>{counts[d]}</span>}
           </button>
         ))}
-        <span className="ml-auto hidden whitespace-nowrap pl-3 text-[12px] text-ink-3 sm:block">Room size shown next to each venue · count = fest events that day</span>
+        <span className="ml-auto hidden whitespace-nowrap pl-3 text-[13px] text-ink-3 sm:block">Room size shown next to each venue · count = fest events that day</span>
       </div>
 
       {/* The grid: venues down, hours across. */}
@@ -267,7 +405,7 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
           <div className="grid" style={{ gridTemplateColumns: `150px repeat(${n}, minmax(0, 1fr))` }}>
             <span />
             {(data?.periods ?? Array.from({ length: 13 }, (_, i) => ({ id: i + 1, start: `${i < 5 ? 8 + i : 9 + i}:00` }))).map((p) => (
-              <span key={p.id} className={`pb-1.5 pl-1 text-[12px] tabular transition-colors ${hover && p.id >= hover.start && p.id < hover.start + hover.span ? "font-semibold text-ink" : "text-ink-3"}`}>{hm(p.start)}</span>
+              <span key={p.id} className={`pb-1.5 pl-1 text-[13px] tabular transition-colors ${hover && p.id >= hover.start && p.id < hover.start + hover.span ? "font-semibold text-ink" : "text-ink-3"}`}>{hm(p.start)}</span>
             ))}
           </div>
           {rooms.map((r) => {
@@ -277,7 +415,7 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
               <div key={r} className="grid border-t border-rule" style={{ gridTemplateColumns: `150px repeat(${n}, minmax(0, 1fr))` }}>
                 <div className={`flex min-w-0 items-baseline gap-1.5 self-center pr-2 transition-colors ${lit ? "text-accent" : ""}`}>
                   <span className="truncate text-[13px] font-medium">{data?.rooms[r]?.name.replace("Classroom ", "Room ") ?? r}</span>
-                  <span className="shrink-0 text-[12px] tabular text-ink-3">{data?.rooms[r]?.capacity ?? ""}</span>
+                  <span className="shrink-0 text-[13px] tabular text-ink-3">{data?.rooms[r]?.capacity ?? ""}</span>
                 </div>
                 <div className="relative col-span-full col-start-2 grid min-h-[42px] py-1" style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}>
                   {/* Hour guides, and the hovered block's time band. */}
@@ -287,7 +425,7 @@ function VenueBoard({ data, down }: { data: Data | null; down: boolean }) {
                   {inRow.map((b) => (
                     <Cell key={b.key} b={b} on={picked?.key === b.key} onPick={() => setSel(b.key)} onHover={setHover} />
                   ))}
-                  {!data && !down && <span className="row-start-1 my-0.5 h-9 animate-pulse rounded-md bg-fill" style={{ gridColumn: `${2 + (r.length % 5)} / span 3` }} />}
+                  {!data && !down && <span className="row-start-1 my-0.5 h-9 rounded-md bg-fill" style={{ gridColumn: `${2 + (r.length % 5)} / span 3` }} />}
                 </div>
               </div>
             );
@@ -310,10 +448,10 @@ function Cell({ b, on, onPick, onHover }: { b: Block; on: boolean; onPick: () =>
   return (
     <button onClick={onPick} onPointerEnter={() => onHover(b)} onFocus={() => onHover(b)} onBlur={() => onHover(null)}
       aria-label={`${b.title}, ${b.sub}`}
-      className={`relative z-10 row-start-1 mx-[2px] my-0.5 flex min-w-0 flex-col justify-center overflow-hidden rounded-[6px] px-1.5 py-1 text-left transition-[box-shadow,transform] duration-150 hover:-translate-y-px ${tone} ${on ? "shadow-[0_0_0_2px_var(--blue)]" : "hover:shadow-[var(--shadow-pop)]"}`}
+      className={`relative z-10 row-start-1 mx-[2px] my-0.5 flex min-w-0 flex-col justify-center overflow-hidden rounded-[6px] px-1.5 py-1 text-left transition-[filter,transform] duration-150 hover:-translate-y-px hover:brightness-[0.97] ${tone} ${on ? "outline outline-2 outline-accent" : ""}`}
       style={{ gridColumn: `${b.start} / span ${b.span}` }}>
-      <span className="truncate text-[12px] font-semibold leading-tight">{b.title}</span>
-      {b.span > 1 && <span className="truncate text-[12px] leading-tight text-ink-3">{b.kind === "class" ? b.sub.split(" · ")[0] : b.sub}</span>}
+      <span className="truncate text-[13px] font-semibold leading-tight">{b.title}</span>
+      {b.span > 1 && <span className="truncate text-[13px] leading-tight text-ink-3">{b.kind === "class" ? b.sub.split(" · ")[0] : b.sub}</span>}
       {b.moved && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-brass" />}
     </button>
   );
@@ -341,14 +479,14 @@ function Detail({ b, data }: { b: Block; data: Data }) {
 }
 
 function Tag({ kind, moved }: { kind: Block["kind"]; moved: boolean }) {
-  if (moved) return <span className="rounded-full bg-brass/15 px-2 py-0.5 text-[12px] font-medium text-brass">Moved to a free venue</span>;
-  if (kind === "class") return <span className="rounded-full bg-fill px-2 py-0.5 text-[12px] font-medium text-ink-2">Class</span>;
-  return <span className="rounded-full bg-jade/15 px-2 py-0.5 text-[12px] font-medium text-jade">Confirmed</span>;
+  if (moved) return <span className="rounded-full bg-brass/15 px-2 py-0.5 text-[13px] font-medium text-brass">Moved to a free venue</span>;
+  if (kind === "class") return <span className="rounded-full bg-fill px-2 py-0.5 text-[13px] font-medium text-ink-2">Class</span>;
+  return <span className="rounded-full bg-jade/15 px-2 py-0.5 text-[13px] font-medium text-jade">Confirmed</span>;
 }
 
 function Legend() {
   return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-2">
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2">
       <li className="flex items-center gap-1.5"><i className="blk blk-lecture h-2.5 w-2.5 rounded-[3px]" />Class</li>
       <li className="flex items-center gap-1.5"><i className="blk blk-event h-2.5 w-2.5 rounded-[3px]" />Spectra</li>
       <li className="flex items-center gap-1.5"><i className="blk blk-club h-2.5 w-2.5 rounded-[3px]" />Club or department</li>
@@ -357,12 +495,12 @@ function Legend() {
   );
 }
 
-function Stat({ label, value, of, good }: { label: string; value: number | null; of?: number; good?: boolean }) {
+function Stat({ label, value, of }: { label: string; value: number | null; of?: number; good?: boolean }) {
   return (
     <div className="border-rule px-5 py-4 [&:nth-child(n+2)]:border-l max-sm:[&:nth-child(3)]:border-l-0 max-sm:[&:nth-child(n+3)]:border-t">
-      <dt className="text-[12px] text-ink-3">{label}</dt>
-      <dd className={`mt-1 text-[28px] font-semibold leading-none tracking-[-0.02em] tabular ${good ? "text-jade" : ""}`}>
-        {value === null ? <span className="inline-block h-6 w-12 animate-pulse rounded bg-fill align-middle" /> : <Count to={value} />}
+      <dt className="text-[13px] text-ink-3">{label}</dt>
+      <dd className="mt-1 text-[28px] font-normal leading-none tracking-[-0.02em] tabular">
+        {value === null ? <span className="inline-block h-6 w-12 rounded bg-fill align-middle" /> : <Count to={value} />}
         {of !== undefined && value !== null && <span className="text-[15px] font-medium text-ink-3"> / {of}</span>}
       </dd>
     </div>
@@ -381,104 +519,3 @@ function Count({ to }: { to: number }) {
 }
 
 /* ───────────────────────────── How it works ───────────────────────────── */
-
-function HowItWorks({ data }: { data: Data | null }) {
-  const moved = data?.rows.find((r) => r.decision?.status === "approved" && /went to/.test(r.decision.reason));
-  const declined = data?.rows.find((r) => r.state !== "cancelled" && r.decision?.status === "rejected");
-  const s = data?.status;
-  const items = [
-    {
-      n: "1", t: "It plans the whole week", d: "Every class gets a room and a time. No student group, teacher or room is ever booked twice.",
-      ex: s ? `${s.sessions} classes placed in ${Math.round(s.solve.seconds ?? 0)} seconds, and ${s.exams} midsems spaced so nobody sits two on one day.` : null,
-    },
-    {
-      n: "2", t: "It decides room requests fairly", d: "Requests follow the institute's priority order: institute events, then guest lectures, departments and clubs.",
-      ex: moved ? `${moved.request.requester} asked for "${moved.request.title}". ${plain(moved.decision!.reason).split(". ").slice(1).join(". ")}` : null,
-    },
-    {
-      n: "3", t: "It says no clearly", d: "When nothing fits, the request is declined with a plain reason, so nobody is left waiting on a phone call.",
-      ex: declined ? `${declined.request.requester}, "${declined.request.title}": ${plain(declined.decision!.reason)}` : null,
-    },
-  ];
-  return (
-    <section id="how" className="scroll-mt-20 border-t border-rule py-16">
-      <h2 className="text-[28px] font-semibold tracking-[-0.02em]">How it works</h2>
-      <div className="mt-8 grid md:grid-cols-3">
-        {items.map((it) => (
-          <article key={it.n} className="flex flex-col border-rule py-6 max-md:[&+&]:border-t md:px-7 md:py-1 md:first:pl-0 md:[&+&]:border-l md:last:pr-0">
-            <h3 className="text-[20px] font-semibold tracking-[-0.015em]">{it.t}</h3>
-            <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{it.d}</p>
-            <figure className="mt-5 border-t border-dashed border-rule pt-4 text-[14px] leading-relaxed text-ink">
-              <figcaption className="mb-1.5 text-[12px] font-medium text-ink-3">Live from this week&apos;s plan</figcaption>
-              {it.ex ?? <span className="inline-block h-4 w-3/4 animate-pulse rounded bg-fill align-middle" />}
-            </figure>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ───────────────────────────── Every Spectra decision ───────────────────────────── */
-
-const FILTERS = [
-  { id: "all", label: "All" },
-  { id: "approved", label: "Confirmed" },
-  { id: "alternative_offered", label: "Other slot offered" },
-  { id: "rejected", label: "Declined" },
-] as const;
-
-function Decisions({ data }: { data: Data | null }) {
-  const [f, setF] = useState<(typeof FILTERS)[number]["id"]>("all");
-  const [all, setAll] = useState(false);
-  const rows = (data?.rows ?? []).filter((r) => r.state !== "cancelled");
-  const match = rows.filter((r) => f === "all" || r.decision?.status === f);
-  const shown = all ? match : match.slice(0, 8);
-  const count = (id: string) => rows.filter((r) => id === "all" || r.decision?.status === id).length;
-  return (
-    <section id="decisions" className="scroll-mt-20 border-t border-rule py-16">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h2 className="text-[28px] font-semibold tracking-[-0.02em]">Every Spectra request, decided</h2>
-          <p className="mt-1 text-[15px] text-ink-2">Each one shows where it landed and why. Sign in as a club to make your own.</p>
-        </div>
-        <div className="seg max-w-full overflow-x-auto" role="tablist">
-          {FILTERS.map((x) => (
-            <button key={x.id} role="tab" aria-selected={f === x.id} onClick={() => { setF(x.id); setAll(false); }} className={f === x.id ? "bg-accent" : ""}>
-              {x.label} <span className="tabular text-ink-3">{data ? count(x.id) : ""}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="mt-6 overflow-hidden rounded-[16px] bg-sheet shadow-[var(--shadow-card)]">
-        <div className="hidden grid-cols-[1.4fr_1fr_1.1fr_2fr] gap-4 border-b border-rule px-5 py-2.5 text-[12px] font-medium text-ink-3 md:grid">
-          <span>Event</span><span>Venue</span><span>When</span><span>Why</span>
-        </div>
-        {!data ? <div className="space-y-3 px-5 py-6" aria-label="Loading">{[0, 1, 2].map((i) => <div key={i} className="h-4 animate-pulse rounded bg-fill" style={{ width: `${88 - i * 14}%` }} />)}</div> : shown.map((r) => {
-          const st = r.decision?.status;
-          return (
-            <div key={r.request.id} className="grid gap-x-4 gap-y-1 border-b border-rule px-5 py-3.5 transition-colors duration-150 last:border-0 hover:bg-fill-2 md:grid-cols-[1.4fr_1fr_1.1fr_2fr]">
-              <div>
-                <div className="text-[14px] font-medium">{r.request.title}</div>
-                <div className="text-[12px] text-ink-3">{r.request.requester} · {r.category_label}</div>
-              </div>
-              <div className="text-[14px]">{r.decision?.room_id ? data.rooms[r.decision.room_id]?.name ?? r.decision.room_id : <span className="text-ink-3">None</span>}</div>
-              <div className="text-[14px] text-ink-2">
-                <span className={`mr-2 inline-block rounded-full px-2 py-px text-[12px] font-medium ${st === "approved" ? "bg-jade/15 text-jade" : st === "rejected" ? "bg-bad/15 text-bad" : "bg-brass/15 text-brass"}`}>
-                  {st === "approved" ? "Confirmed" : st === "rejected" ? "Declined" : "Other slot"}
-                </span>
-                {r.when?.replace(/\s*\(P\d+(?:-P\d+)?\)/, "") ?? ""}
-              </div>
-              <div className="text-[13px] leading-relaxed text-ink-2">{r.decision ? plain(r.decision.reason) : ""}</div>
-            </div>
-          );
-        })}
-        {data && match.length > 8 && (
-          <button onClick={() => setAll(!all)} className="w-full border-t border-rule px-5 py-3 text-center text-[14px] font-medium text-accent transition-colors hover:bg-fill-2">
-            {all ? "Show fewer" : `Show all ${match.length}`}
-          </button>
-        )}
-      </div>
-    </section>
-  );
-}

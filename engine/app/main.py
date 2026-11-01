@@ -26,7 +26,9 @@ from .exams import check_exams, schedule_exams
 from .explain import explain_session, session_options, utilisation
 from .export import build_schedule
 from .model import LAST_TEACHING, MAX_PERIOD, Ctx
+from .proofs import proofs_report
 from .repair import CHANGE_TYPES, describe_diff, propose_repair
+from .resilience import resilience_report, week_quality
 from .solver import solve_timetable
 from .state import LOCK, SEED_FILE, STATE, State
 
@@ -46,7 +48,7 @@ app.add_middleware(
 )
 
 ENGINE_TOKEN = os.environ.get("ENGINE_TOKEN", "")
-SOLVE_SECONDS = float(os.environ.get("SOLVE_SECONDS", "60"))
+SOLVE_SECONDS = float(os.environ.get("SOLVE_SECONDS", "90"))
 REPAIR_SECONDS = float(os.environ.get("REPAIR_SECONDS", "45"))
 
 # Demo accounts. Faculty F01 and the Robotics Club match people in the dataset.
@@ -142,7 +144,7 @@ def full_generate(time_limit: float, actor: str) -> dict:
 
 def redecide(actor: str, note: str) -> None:
     """Re-run the arbiter, keeping every confirmed decision as it is."""
-    b = decide_bookings(STATE.ctx, STATE.assign, locked=STATE.locked)
+    b = decide_bookings(STATE.ctx, STATE.assign, locked=STATE.locked, prior_overrides=STATE.fest.get("session_overrides"))
     STATE.fest, STATE.booking_explain = b["fest_week"], b["explain"]
     STATE.booking_score = (b["score"], b["max_score"])
     STATE.log(actor, "bookings_redecided", note)
@@ -151,7 +153,7 @@ def redecide(actor: str, note: str) -> None:
 def export_current() -> dict:
     """schedule.json for the current state, in the validator's format, dataset requests only."""
     orig = set(STATE.original_request_ids)
-    fest = {"bookings": [b for b in STATE.fest["bookings"] if b["request_id"] in orig],
+    fest = {"bookings": [{k: v for k, v in b.items() if k != "moves"} for b in STATE.fest["bookings"] if b["request_id"] in orig],
             "session_overrides": [o for o in STATE.fest["session_overrides"] if o["displaced_by"] in orig]}
     return build_schedule(STATE.data["dataset_id"], STATE.assign, fest, STATE.exams)
 
@@ -297,7 +299,9 @@ def timetable(week: str = "regular") -> dict:
                 req = ctx.requests.get(b["request_id"])
                 if req:
                     events.append({**b, "title": req["title"], "requester": req["requester"],
-                                   "category": ctx.effective_category(req)})
+                                   "category": ctx.effective_category(req),
+                                   "groups": list(req.get("mandatory_for_groups") or []),
+                                   "faculty": list(req.get("attending_faculty") or [])})
     return {"week": week, "sessions": rows, "events": events, "solve": STATE.solve_info, **report(ctx, assign)}
 
 
@@ -408,7 +412,8 @@ def bookings(user: dict = Depends(current_user)) -> dict:
     for p in STATE.pending_bookings.values():
         rows.append(_booking_row(p["request"], p["proposal"], user, "pending"))
     for c in STATE.closed_bookings:
-        rows.append(_booking_row(c["request"], c["decision"], user, "turned_down"))
+        gone = "cancelled" if c["decision"].get("reason") == "Withdrawn by the requester" else "turned_down"
+        rows.append(_booking_row(c["request"], c["decision"], user, gone))
     order = STATE.data["priority_order"]
     rows.sort(key=lambda r: (r["state"] != "pending", order.index(r["effective_category"]), r["request"]["submitted_at"]))
     s, m = STATE.booking_score
@@ -438,6 +443,7 @@ class DraftIn(BaseModel):
     needs: list[str] = []
     requested_room: str | None = None
     mandatory_for_groups: list[str] = []
+    attending_faculty: list[str] = []
     requested_category: str = "club_event"
     raw_text: str | None = None
 
@@ -465,6 +471,9 @@ def _draft_problems(body: DraftIn) -> list[str]:
     bad = [g for g in body.mandatory_for_groups if g not in ctx.groups]
     if bad:
         errs.append(f"Unknown groups: {', '.join(bad)}")
+    bad_f = [f for f in body.attending_faculty if f not in ctx.faculty]
+    if bad_f:
+        errs.append(f"Unknown teachers: {', '.join(bad_f)}")
     if body.requested_category not in STATE.data["priority_order"]:
         errs.append("Unknown category")
     return errs
@@ -478,18 +487,23 @@ def _to_request(body: DraftIn, user: dict, rid: str) -> dict:
             "windows": [{"day": w["day"], "from_period": int(w["from_period"]), "to_period": int(w["to_period"])}
                         for w in body.windows], "room_types": types, "needs": body.needs,
             "requested_room": body.requested_room, "mandatory_for_groups": body.mandatory_for_groups,
+            "attending_faculty": body.attending_faculty,
             "series_id": None, "raw_text": body.raw_text or ""}
 
 
-def _decide_new(req: dict) -> tuple[dict, dict, list]:
-    """Decide one new request against everything already decided (published decisions stay put)."""
+def _decide_new(req: dict, keep: dict | None = None) -> tuple[dict, dict, dict]:
+    """Decide one new request against everything already decided: every existing decision keeps its
+    room, time and any classes it moved. `keep` pins this request to a slot already shown to the
+    requester (used at approval, so the approver confirms exactly what was proposed)."""
     data = copy.deepcopy(STATE.data)
     data["booking_requests"].append(req)
     ctx = Ctx(data)
     locked = {b["request_id"]: b for b in STATE.fest["bookings"]}
-    b = decide_bookings(ctx, week_assign(), locked=locked)
+    if keep and keep.get("status") in ("approved", "alternative_offered"):
+        locked[req["id"]] = keep
+    b = decide_bookings(ctx, STATE.assign, locked=locked, prior_overrides=STATE.fest.get("session_overrides"))
     dec = next(x for x in b["fest_week"]["bookings"] if x["request_id"] == req["id"])
-    return dec, b["explain"].get(req["id"], {}), b["fest_week"]["session_overrides"]
+    return dec, b["explain"].get(req["id"], {}), b
 
 
 @app.post("/bookings/preview")
@@ -519,8 +533,8 @@ def submit_booking(body: DraftIn, user: dict = Depends(current_user)) -> dict:
     with LOCK:
         rid = STATE.next_id("NR")
         req = _to_request(body, user, rid)
-        dec, exp, overrides = _decide_new(req)
-        STATE.pending_bookings[rid] = {"request": req, "proposal": dec, "explain": exp, "overrides": overrides}
+        dec, exp, b = _decide_new(req)
+        STATE.pending_bookings[rid] = {"request": req, "proposal": dec, "explain": exp, "overrides": b["fest_week"]["session_overrides"]}
         STATE.requesters[rid] = user["username"]
         STATE.booking_explain[rid] = exp
         STATE.log(user["username"], "booking_submitted", f"{rid} {req['title']}: engine proposes {dec['status']}")
@@ -540,18 +554,23 @@ def approve_booking(rid: str, body: NoteIn = NoteIn(), user: dict = Depends(curr
             req = p["request"]
             if not can_approve(user, req, STATE.requesters.get(rid)):
                 raise HTTPException(403, "You can't approve this request (your own, or outside your area)")
-            dec, exp, overrides = _decide_new(req)    # re-check: the week may have changed since submission
+            # Book exactly what the requester was shown; only if the week changed since then is it re-decided.
+            dec, exp, b = _decide_new(req, keep=p["proposal"])
+            changed = (dec.get("day"), dec.get("start_period"), dec.get("room_id")) != (
+                p["proposal"].get("day"), p["proposal"].get("start_period"), p["proposal"].get("room_id"))
+            if changed:
+                exp = {**exp, "notes": [*exp.get("notes", []), "The proposed slot was taken after this was sent, so it was re-decided"]}
             STATE.data["booking_requests"].append(req)
             STATE.ctx = Ctx(STATE.data)
-            STATE.fest["bookings"].append(dec)
-            STATE.fest["session_overrides"] = overrides
+            STATE.fest = b["fest_week"]
+            STATE.booking_score = (b["score"], b["max_score"])
             STATE.locked[rid] = dec
             STATE.booking_explain[rid] = exp
             STATE.confirmations[rid] = {"by": user["username"], "at": now(), "note": body.note}
             del STATE.pending_bookings[rid]
             STATE.log(user["username"], "booking_confirmed", f"{rid}: {dec['status']} - {dec.get('reason', '')}")
             STATE.save()
-            return {"id": rid, "decision": dec}
+            return {"id": rid, "decision": dec, "changed": changed}
         req = STATE.ctx.requests.get(rid)
         if not req:
             raise HTTPException(404, f"Unknown request {rid}")
@@ -787,6 +806,19 @@ def util() -> dict:
         fac.append({"faculty_id": f["id"], "name": f["name"], "hours": hours})
     return {"rooms": utilisation(ctx, STATE.assign), "by_day": by_day, "by_period": by_period,
             "faculty_load": sorted(fac, key=lambda x: -x["hours"]), "soft": soft_score(ctx, STATE.assign)[0]}
+
+
+@app.get("/proofs")
+def proofs() -> dict:
+    """Why each score is the best possible, how the week feels, and how well it absorbs surprises."""
+    need_timetable()
+    ctx = STATE.ctx
+    out = proofs_report(ctx, STATE.assign, STATE.booking_score, STATE.exam_penalty,
+                        baseline=STATE.baseline, solve_info=STATE.solve_info)
+    out["quality"] = week_quality(ctx, STATE.assign)
+    out["resilience"] = resilience_report(ctx, STATE.assign)
+    out["solve"] = {k: STATE.solve_info.get(k) for k in ("status", "seconds", "stage1", "stage2")}
+    return out
 
 
 @app.get("/audit")

@@ -6,8 +6,28 @@
 
 | File | Hard violations | Soft penalty | Bookings | Exams | Stability |
 | --- | --- | --- | --- | --- | --- |
-| `exports/schedule.json` | **0** | 3 (only S4: three 5 pm classes) | 67/70, 0 priority inversions | penalty 0 | |
-| `exports/schedule_after.json` (sample disruption) | **0** | 3 | 67/70 | penalty 0 | 8 sessions moved, all room-only, 0 time changes |
+| `exports/schedule.json` | **0** | **3, proven minimum** (S4 only, see below) | **67/70, proven maximum**, 0 priority inversions | penalty 0 | |
+| `exports/schedule_after.json` (sample disruption) | **0** | 6 | 67/70 | penalty 0 | 12 sessions moved, the proven minimum (11 room-only, 1 time change) |
+
+### Why nobody can beat 3 and 67
+
+- **Soft penalty 3 is forced by the data.** CS204 has 3 lectures for CSE-2, all taught by F08 (Prof. Vikram Rao, visiting), who can only teach on Tuesday and Thursday. Three lectures on two days puts two on one day, and S4 charges 3 points for that. Every other soft rule is at 0. CP-SAT independently proves 3 optimal.
+- **Booking score 67 of 70 is the ceiling.** BR-09 needs 1,200 seats and the largest venue holds 800 (it must be rejected, -2). BR-17 asks for 10 pm to midnight, past the campus day, so it can only get an alternative (half of 2, -1).
+- **Repair moves equal the lower bound.** Every class whose room or teacher became unavailable has to move; the repair moves exactly those, and nothing else.
+
+The app's **Proof** page computes these bounds from the data (nothing is hard-coded) and shows them next to what we achieve.
+
+### What the validator doesn't score, and we still optimise
+
+The timetable is solved in three stages, each locking the ones before, so later stages can never cost a validator point:
+
+1. Soft penalty (proved optimal), with Spectra venue slots kept free as the tie-break.
+2. Spread classes over rooms, so closing any one shared room forces as few moves as possible.
+3. A kinder week: no 8 am starts (16 before, 0 now), no building changes between back-to-back classes (68 before, 0 now), and a spare suitable room at every hour.
+
+A **surprise check** tries every single-room closure and every teacher-day absence on the plan and reports how many can be fixed without touching any other class.
+
+On 10 random disruptions in the judges' format (a teacher away for a day, a classroom closed all week, an added tutorial), the three-stage timetable needed 7 time changes in total against 11 before, and its soft penalty after the fix was 36 in total against 44, with no single closure moving more than 12 classes (19 before). It moved 108 classes in total against 88, all but 7 of them room-only. On the public sample disruption specifically it moves 12 (the proven minimum for this plan), because 11 classes sit in the room that closes.
 
 Full validator output: `exports/validator_schedule.txt`, `exports/validator_schedule_after.txt`. Regenerate with `python engine/scripts/make_exports.py`.
 
@@ -42,7 +62,9 @@ flowchart TD
 | Engine module | Job |
 | --- | --- |
 | `checker.py` | Hard rules H1–H14 and soft score S1–S6, same results as `validator.py` (tested) |
-| `solver.py` | CP-SAT timetable (about 90k variables, OPTIMAL in ~30 s), Spectra reservations, baseline-aware repair |
+| `solver.py` | Three-stage lexicographic CP-SAT timetable (about 90k variables; soft penalty OPTIMAL in ~50 s on 4 cores), Spectra reservations, baseline-aware repair |
+| `proofs.py` | Lower and upper bounds for every validator score, with plain-words reasons |
+| `resilience.py` | Surprise check over every room closure and teacher-day absence; student-week measures |
 | `exams.py` | CP-SAT midsem exams with half-capacity room packing |
 | `arbiter.py` | Priority-first Spectra decisions with role caps, alternatives and Week-7-only class moves for institute events |
 | `repair.py` | Applies change files with the validator's semantics, re-solves with fewest moves, diagnoses infeasibility |
@@ -74,7 +96,7 @@ cd engine
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-uvicorn app.main:app --port 8000   # loads seed_state.json; delete it to solve from scratch (~45 s)
+uvicorn app.main:app --port 8000   # loads seed_state.json; delete it to solve from scratch (about 2 to 3 minutes)
 
 # 2. Web (new terminal)
 cd web

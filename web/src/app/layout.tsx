@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter_Tight, JetBrains_Mono } from "next/font/google";
+import { Anton, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import AppShell from "@/components/AppShell";
 import "./globals.css";
 
 // One typeface for the whole product (Inter Tight), plus a mono for codes in the files view.
 const inter = Inter_Tight({ variable: "--font-inter", subsets: ["latin"] });
+// Anton: the poster face, used only on the landing page.
+const anton = Anton({ variable: "--font-anton", subsets: ["latin"], weight: "400" });
 const mono = JetBrains_Mono({ variable: "--font-jbmono", subsets: ["latin"], weight: ["400", "500"] });
 
 // Every page is a signed-in client view that loads live data from the engine,
@@ -25,7 +27,7 @@ const THEME = `try{var t=localStorage.getItem("cw-theme");if(t==="light"||t==="d
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable} h-full`} suppressHydrationWarning>
+    <html lang="en" className={`${inter.variable} ${mono.variable} ${anton.variable} h-full`} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: THEME }} /></head>
       <body className="min-h-full">
         <AppShell>{children}</AppShell>

@@ -11,25 +11,26 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 :root, [data-theme="light"] {
-  --bg: #efe9dc;            /* bone paper */
-  --surface: #f8f4ea;
-  --surface-2: #f3eee2;
+  --bg: #e6ecec;            /* lake-grey paper: Chilika at first light (was bone #efe9dc) */
+  --surface: #f7f9f9;
+  --surface-2: #eef2f2;
   --fill: rgba(14, 26, 29, 0.08);
   --fill-2: rgba(14, 26, 29, 0.05);
   --label: #0e1a1d;         /* lagoon ink */
-  --label-2: #4a5654;
-  --label-3: #566060;
+  --label-2: #3f4b4c;
+  --label-3: #4b585a;
   --separator: rgba(14, 26, 29, 0.12);
-  --blue: #cc3a16;          /* vermilion: the one action colour (token name kept so every page picks it up) */
-  --link: #b8340e;
+  --blue: #c0330f;          /* vermilion: the one action colour (token name kept so every page picks it up) */
+  --link: #ad2e0c;
   --green: #146547;         /* jade: all clear */
   --orange: #74500a;        /* brass: heads-up */
   --red: #c42d2d;
   --teal: #23788a;
   --purple: #6a4ea3;        /* dusk: Spectra */
-  --material: rgba(239, 233, 220, 0.78);
+  --material: #e6ecec;
   --material-border: rgba(14, 26, 29, 0.08);
-  --shadow-card: 0 0 0 1px rgba(14, 26, 29, 0.07), 0 2px 12px rgba(14, 26, 29, 0.04);
+  --edge: rgba(14, 26, 29, 0.1);   /* the one 1px panel edge; panels never carry a shadow at rest */
+  --shadow-card: none;
   --shadow-pop: 0 0 0 1px rgba(14, 26, 29, 0.1), 0 18px 44px rgba(14, 26, 29, 0.16);
   --fitness: #0e1a1d;
   color-scheme: light;
@@ -40,8 +41,8 @@
     --bg: #091114; --surface: #0f1a1d; --surface-2: #132226; --fill: rgba(236, 229, 211, 0.1); --fill-2: rgba(236, 229, 211, 0.06);
     --label: #ece5d3; --label-2: #a3aba5; --label-3: #838e8a; --separator: rgba(236, 229, 211, 0.11);
     --blue: #ff6a3d; --link: #ff8a63; --green: #5fd3a8; --orange: #e8b54d; --red: #ff5a4e; --teal: #6cc7d1; --purple: #a98bea;
-    --material: rgba(9, 17, 20, 0.74); --material-border: rgba(236, 229, 211, 0.08);
-    --shadow-card: 0 0 0 1px rgba(236, 229, 211, 0.07); --shadow-pop: 0 0 0 1px rgba(236, 229, 211, 0.12), 0 22px 60px rgba(0, 0, 0, 0.55);
+    --material: #091114; --material-border: rgba(236, 229, 211, 0.08);
+    --edge: rgba(236, 229, 211, 0.1); --shadow-card: none; --shadow-pop: 0 0 0 1px rgba(236, 229, 211, 0.12), 0 22px 60px rgba(0, 0, 0, 0.55);
     --fitness: #0f1a1d; color-scheme: dark;
   }
 }
@@ -49,8 +50,8 @@
   --bg: #091114; --surface: #0f1a1d; --surface-2: #132226; --fill: rgba(236, 229, 211, 0.1); --fill-2: rgba(236, 229, 211, 0.06);
   --label: #ece5d3; --label-2: #a3aba5; --label-3: #838e8a; --separator: rgba(236, 229, 211, 0.11);
   --blue: #ff6a3d; --link: #ff8a63; --green: #5fd3a8; --orange: #e8b54d; --red: #ff5a4e; --teal: #6cc7d1; --purple: #a98bea;
-  --material: rgba(9, 17, 20, 0.74); --material-border: rgba(236, 229, 211, 0.08);
-  --shadow-card: 0 0 0 1px rgba(236, 229, 211, 0.07); --shadow-pop: 0 0 0 1px rgba(236, 229, 211, 0.12), 0 22px 60px rgba(0, 0, 0, 0.55);
+  --material: #091114; --material-border: rgba(236, 229, 211, 0.08);
+  --edge: rgba(236, 229, 211, 0.1); --shadow-card: none; --shadow-pop: 0 0 0 1px rgba(236, 229, 211, 0.12), 0 22px 60px rgba(0, 0, 0, 0.55);
   --fitness: #0f1a1d; color-scheme: dark;
 }
 
@@ -102,8 +103,8 @@
     background: var(--bg);
     color: var(--label);
     font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 1.47;
+    font-size: 16px;
+    line-height: 1.5;
     letter-spacing: -0.009em;
     font-optical-sizing: auto;
     -webkit-font-smoothing: antialiased;
@@ -120,8 +121,8 @@
   table, time, [data-num] { font-variant-numeric: tabular-nums; }
   select { cursor: pointer; }
   input, select, textarea {
-    background: var(--fill-2); color: var(--label); border: 0; border-radius: 10px;
-    box-shadow: inset 0 0 0 0.5px var(--separator);
+    background: var(--surface); color: var(--label); border: 0; border-radius: 10px;
+    box-shadow: inset 0 0 0 1px var(--edge);
     transition: box-shadow .2s ease;
   }
   input::placeholder, textarea::placeholder { color: var(--label-3); }
@@ -133,13 +134,10 @@
 
 @layer components {
   /* Content surface: solid, quiet, no border. (Kept under the old class name so every page picks it up.) */
-  .glass { background: var(--surface); box-shadow: var(--shadow-card); }
+  .glass { background: var(--surface); border: 1px solid var(--edge); }
   .glass-thin { background: var(--fill-2); }
-  /* Translucent material, for chrome only. */
-  .material {
-    background: var(--material);
-    backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
-  }
+  /* Chrome: opaque, on the page ground. No glass. */
+  .material { background: var(--material); }
 
   .stamp {
     display: inline-flex; align-items: center; gap: .32rem; font-size: 12px; font-weight: 500;
@@ -148,7 +146,7 @@
   }
   .stamp::before { content: ""; width: 6px; height: 6px; border-radius: 9999px; background: currentColor; }
   /* Timetable blocks: a tinted fill and a 1px ring in the kind's hue. No side stripes. */
-  .blk { --tone: var(--label-3); background: color-mix(in srgb, var(--tone) 14%, var(--surface)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 42%, transparent); }
+  .blk { --tone: var(--label-3); background: color-mix(in srgb, var(--tone) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent); }
   .blk-lecture { --tone: var(--label-3); background: color-mix(in srgb, var(--label) 6%, var(--surface)); }
   .blk-tutorial { --tone: var(--teal); }
   .blk-lab { --tone: var(--orange); }
@@ -162,23 +160,22 @@
   .seg > button { padding: .3rem .85rem; border-radius: 7px; font-size: 13px; font-weight: 500; color: var(--label); transition: background .2s ease, box-shadow .2s ease; }
 
   /* Inset grouped list rows with hairlines inset from the leading edge. */
-  .grouped { background: var(--surface); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-card); }
-  .grouped > * + * { box-shadow: inset 16px 0.5px 0 0 var(--surface), inset 0 0.5px 0 0 var(--separator); }
+  .grouped { background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--edge); }
+  .grouped > * + * { border-top: 1px solid var(--separator); }
 }
 
 /* Selected segment: unlayered so it wins over the bg-accent utility the pages set. */
-.seg > button.bg-accent { background: var(--surface); color: var(--label); box-shadow: 0 3px 8px color-mix(in srgb, #091114 12%, transparent), 0 3px 1px color-mix(in srgb, #091114 4%, transparent); }
+.seg > button.bg-accent { background: var(--surface); color: var(--label); outline: 1px solid var(--edge); outline-offset: -1px; }
 [data-theme="dark"] .seg > button.bg-accent { background: #24363b; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .seg > button.bg-accent { background: #24363b; } }
 
 /* Motion: purposeful and short. */
-@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-.rise { animation: rise .45s var(--ease-out-quart) both; }
-.stagger > * { animation: rise .5s var(--ease-out-quart) both; }
-.stagger > *:nth-child(2) { animation-delay: .04s; } .stagger > *:nth-child(3) { animation-delay: .08s; }
-.stagger > *:nth-child(4) { animation-delay: .12s; } .stagger > *:nth-child(n+5) { animation-delay: .16s; }
-@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
-.shimmer { background: linear-gradient(90deg, transparent, color-mix(in srgb, #ece5d3 22%, transparent), transparent); background-size: 200% 100%; animation: shimmer 1.8s linear infinite; }
+/* App screens don't perform entrances (taste-skill app rule): content is simply there.
+   Motion is feedback only: press, hover, focus, a menu or sheet opening. */
+.rise, .stagger > * { animation: none; }
+/* Engine busy: a flat tint that breathes, no gradient sweep. */
+@keyframes busy { 0%, 100% { opacity: .0; } 50% { opacity: .5; } }
+.shimmer { background: color-mix(in srgb, var(--orange) 18%, transparent); animation: busy 1.6s ease-in-out infinite; }
 @keyframes pop { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
 .pop { animation: pop .28s var(--ease-out-quart) both; }
 @keyframes sheet { from { transform: translateY(100%); } to { transform: none; } }
@@ -200,7 +197,7 @@
 .navkbd { max-width: 0; padding-inline: 0; opacity: 0; transition: max-width .35s cubic-bezier(.3, 1.2, .5, 1), padding .35s, opacity .25s; }
 .navsearch:hover .navkbd, .navsearch:focus-visible .navkbd { max-width: 4rem; padding-inline: .375rem; opacity: 1; }
 .navbadge { animation: badge-pop .5s cubic-bezier(.3, 1.6, .5, 1) both; }
-@keyframes badge-pop { 0% { transform: scale(0); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+@keyframes badge-pop { 0% { transform: scale(.96); opacity: 0; } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
 .navicon { display: inline-grid; place-items: center; transition: transform .35s cubic-bezier(.3, 1.4, .5, 1); }
 .navitem:hover .navicon, .navitem:focus-visible .navicon { animation-duration: .7s; animation-timing-function: cubic-bezier(.3, 1.2, .5, 1); animation-fill-mode: both; }
 .navitem[data-anim="spin"]:hover .navicon { animation-name: nav-spin; }
@@ -223,3 +220,106 @@
 @keyframes nav-lift { 0% { transform: none; } 50% { transform: translateY(-4px) rotate(-6deg); } 100% { transform: translateY(-1px); } }
 @keyframes nav-tilt { 0%, 100% { transform: none; } 40% { transform: rotate(-12deg) translateX(-1px); } 70% { transform: rotate(5deg); } }
 @media (prefers-reduced-motion: reduce) { .navpill, .navdot, .navkbd { transition: none; } .navitem { transform: none !important; margin-inline: 0 !important; } .navitem .navicon { animation: none !important; } }
+
+/* Landing page reveal (the one page that is read rather than worked in). Transform and opacity only. */
+.reveal-on [data-reveal] { transition: opacity .7s var(--ease-out-quart), transform .7s var(--ease-out-quart); transition-delay: var(--d, 0ms); }
+.reveal-on [data-reveal]:not([data-shown]) { opacity: 0; transform: translateY(24px); }
+@media (prefers-reduced-motion: reduce) { .reveal-on [data-reveal] { opacity: 1 !important; transform: none !important; } }
+
+/* ---------------------------------------------------------------- landing poster */
+.font-poster { font-family: var(--font-anton), "Arial Narrow", Impact, sans-serif; font-weight: 400; }
+/* The admit-one ticket: square corners with scalloped top and bottom edges. */
+.ticket {
+  --r: 9px; --gap: 26px;
+  -webkit-mask: radial-gradient(circle var(--r) at 50% 0, #0000 98%, #000) 50% 0 / var(--gap) 51% repeat-x,
+                radial-gradient(circle var(--r) at 50% 100%, #0000 98%, #000) 50% 100% / var(--gap) 51% repeat-x;
+          mask: radial-gradient(circle var(--r) at 50% 0, #0000 98%, #000) 50% 0 / var(--gap) 51% repeat-x,
+                radial-gradient(circle var(--r) at 50% 100%, #0000 98%, #000) 50% 100% / var(--gap) 51% repeat-x;
+}
+/* Signature move: the arch picture opens like a shutter from the seam while the scene settles from 1.12. */
+@keyframes shutter { from { clip-path: inset(100% 0 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes settle { from { transform: scale(1.12); } to { transform: none; } }
+@keyframes poster-in { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+.arch-shutter > div { animation: shutter 1.1s cubic-bezier(.7, 0, .2, 1) .15s both; }
+.arch-img { animation: settle 1.6s var(--ease-out-quart) .15s both; transform-origin: 50% 60%; }
+.poster-line { animation: poster-in .8s var(--ease-out-quart) both; }
+@media (prefers-reduced-motion: reduce) { .arch-shutter > div, .arch-img, .poster-line { animation: none !important; } }
+
+/* ---------------------------------------------------------------- poster theme across the app
+   Every page wears the landing poster: a vermilion masthead, a coloured field per page, Anton headlines.
+   Fields re-declare the colour tokens so everything inside them (buttons, toggles, selects) reads on that colour. */
+:root {
+  --base-label: var(--label); --base-label-2: var(--label-2); --base-label-3: var(--label-3);
+  --base-fill: var(--fill); --base-fill-2: var(--fill-2); --base-separator: var(--separator); --base-edge: var(--edge);
+  --base-surface: var(--surface); --base-blue: var(--blue); --base-link: var(--link); --base-red: var(--red);
+}
+.poster-bar {
+  --material: #c0330f; --material-border: transparent;
+  --label: #f7f9f8; --label-2: rgba(247, 249, 248, .92); --label-3: rgba(247, 249, 248, .86);
+  --fill: rgba(255, 255, 255, .2); --fill-2: rgba(255, 255, 255, .12); --separator: rgba(255, 255, 255, .28);
+  --edge: rgba(255, 255, 255, .3); --surface: rgba(255, 255, 255, .16); --blue: #f7f9f8; --red: #0e1a1d;
+  color: var(--label); border-color: transparent !important;
+}
+.poster-bar .pop {
+  --label: var(--base-label); --label-2: var(--base-label-2); --label-3: var(--base-label-3);
+  --fill: var(--base-fill); --fill-2: var(--base-fill-2); --separator: var(--base-separator); --edge: var(--base-edge);
+  --surface: var(--base-surface); --blue: var(--base-blue); --red: var(--base-red); color: var(--label);
+}
+.poster-bar .pop .seg > button.bg-accent { color: var(--label); }
+.poster-tabs { --material: #0e1a1d; --material-border: transparent; --label-3: rgba(247, 249, 248, .78); --blue: #e8b54d; --red: #c0330f; border-color: transparent !important; }
+
+.band { color: var(--label); --blue: #c0330f; color-scheme: light; }
+.band-lake {
+  background: #23788a;
+  --label: #f7f9f8; --label-2: rgba(247, 249, 248, .92); --label-3: rgba(247, 249, 248, .9);
+  --fill: rgba(247, 249, 248, .18); --fill-2: rgba(247, 249, 248, .1); --separator: rgba(247, 249, 248, .25);
+  --edge: rgba(247, 249, 248, .32); --surface: rgba(247, 249, 248, .22); --link: #f7f9f8;
+  --green: #c9f5e4; --orange: #f6e3b5; --red: #ffd9d0;
+}
+.band-brass, .band-mint, .band-sky {
+  --label: #0e1a1d; --label-2: #1c2729; --label-3: #253133;
+  --fill: rgba(14, 26, 29, .1); --fill-2: rgba(14, 26, 29, .06); --separator: rgba(14, 26, 29, .2);
+  --edge: rgba(14, 26, 29, .22); --surface: #f7f9f8; --link: #0e1a1d;
+  --green: #0d4a33; --orange: #4a3306; --red: #8f1c1c;
+}
+.band-brass { background: #e8b54d; }
+.band-mint { background: #5fd3a8; }
+.band-sky { background: #6cc7d1; }
+.band .seg > button.bg-accent { background: var(--surface) !important; color: var(--label) !important; }
+.band select { background-color: var(--surface); color: var(--label); }
+.band-sun { color: #f7f9f8; opacity: .16; animation: sun-up 1.1s var(--ease-out-quart) .1s both; }
+.band-brass .band-sun, .band-mint .band-sun, .band-sky .band-sun { color: #0e1a1d; opacity: .09; }
+@keyframes sun-up { from { transform: translateY(60px); opacity: 0; } }
+
+/* Panels arrive in a short stagger when a page opens, the way the poster's sections land. */
+@keyframes card-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+main .glass { animation: card-in .55s var(--ease-out-quart) both; }
+main :nth-child(2) > .glass, main .glass:nth-child(2) { animation-delay: 60ms; }
+main :nth-child(3) > .glass, main .glass:nth-child(3) { animation-delay: 120ms; }
+main :nth-child(4) > .glass, main .glass:nth-child(4) { animation-delay: 180ms; }
+main .glass:nth-child(n+5) { animation-delay: 220ms; }
+@media (prefers-reduced-motion: reduce) { .band-sun, main .glass { animation: none !important; } }
+
+/* Timetable blocks in poster colours: each kind of class is a solid field, with its text tokens re-set to read on it. */
+.blk.blk-lecture, .blk.blk-tutorial, .blk.blk-lab, .blk.blk-event, .blk.blk-club { border: 0; color-scheme: light; box-shadow: inset 4px 0 0 rgba(14, 26, 29, .28); }
+.blk.blk-lecture, .blk.blk-event {
+  --label: #f7f9f8; --label-2: rgba(247, 249, 248, .95); --label-3: rgba(247, 249, 248, .86);
+  --green: #c9f5e4; --orange: #f6e3b5; --red: #ffd9d0; --teal: #d5eef1; --purple: #f6e3b5; --warn: #f6e3b5;
+}
+.blk.blk-tutorial, .blk.blk-lab, .blk.blk-club {
+  --label: #0e1a1d; --label-2: #1c2729; --label-3: #2a3638;
+  --green: #0d4a33; --orange: #4a3306; --red: #8f1c1c; --teal: #123f49; --purple: #3c2a66;
+}
+.blk.blk-lecture { background: #23788a; }
+.blk.blk-tutorial { background: #5fd3a8; }
+.blk.blk-lab { background: #e8b54d; }
+.blk.blk-event { background: #c0330f; }
+.blk.blk-club { background: #6cc7d1; }
+.blk.blk-lecture, .blk.blk-tutorial, .blk.blk-lab, .blk.blk-event, .blk.blk-club { color: var(--label); }
+button.blk:hover { filter: brightness(1.06) saturate(1.05); }
+.tt-head { background: #0e1a1d; color: #f7f9f8; }
+.tt-lunch { background: repeating-linear-gradient(-45deg, rgba(232, 181, 77, .22) 0 8px, rgba(232, 181, 77, .1) 8px 16px); }
+
+/* Ask-for-a-room grid: hours when someone attending already has a class or event. */
+.busy { background: repeating-linear-gradient(-45deg, color-mix(in srgb, var(--label) 14%, transparent) 0 5px, color-mix(in srgb, var(--label) 6%, transparent) 5px 10px); }
+.busy-on { background: repeating-linear-gradient(-45deg, #5fd3a8 0 5px, #b9ecd6 5px 10px); }

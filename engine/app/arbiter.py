@@ -33,6 +33,20 @@ def fmt_slot(day: str, a: int, b: int) -> str:
     return f"{day.title()} {h(period_hour(a))} to {h(period_hour(b) + 1)} (P{a}-P{b})"
 
 
+def attending_faculty(req: dict) -> list[str]:
+    return list(req.get("attending_faculty") or [])
+
+
+def participants(req: dict) -> list[str]:
+    """Everyone whose own timetable an event takes over: the sections and teachers who attend it."""
+    return list(req.get("mandatory_for_groups") or []) + attending_faculty(req)
+
+
+def clash_sessions(b: dict) -> list[str]:
+    """Regular classes in the way of a placement: in the room, or taught to / by people who must attend."""
+    return sorted({*b["sessions"], *(x[1] for x in b["groups"]), *(x[1] for x in b["faculty"])})
+
+
 class Week:
     """Occupancy of the Spectra week: base timetable + overrides + approved bookings."""
 
@@ -42,6 +56,7 @@ class Week:
         self.overrides: dict[str, tuple[str, int, str, str]] = {}
         self._rebuild()
         self.booked: dict[tuple[str, str, int], str] = {}
+        self.people: dict[tuple[str, str, int], str] = {}   # (section or teacher, day, period) -> event they attend
 
     def _rebuild(self) -> None:
         self.room_sessions: dict[tuple[str, str, int], str] = {}
@@ -51,9 +66,15 @@ class Week:
                 for p in block(st, s["duration"]):
                     self.room_sessions[(r, d, p)] = sid
         self.grp = group_occupancy(self.ctx, self.assign)
+        self.fac: dict[tuple[str, str, int], list[str]] = {}
+        for sid, (d, st, _r) in self.assign.items():
+            s = self.ctx.sessions.get(sid)
+            if s:
+                for p in block(st, s["duration"]):
+                    self.fac.setdefault((s["faculty_id"], d, p), []).append(sid)
 
     def blockers(self, req: dict, room: str, day: str, start: int) -> dict[str, list]:
-        out = {"bookings": [], "sessions": [], "groups": [], "maintenance": []}
+        out = {"bookings": [], "sessions": [], "groups": [], "faculty": [], "people": [], "maintenance": []}
         for p in block(start, req["duration_periods"]):
             if (day, p) in self.ctx.room_unavail[room]:
                 out["maintenance"].append(p)
@@ -64,11 +85,19 @@ class Week:
             for g in req["mandatory_for_groups"]:
                 for sid in self.grp.get((g, day, p), ()):
                     out["groups"].append((g, sid, p))
+            for f in attending_faculty(req):
+                for sid in self.fac.get((f, day, p), ()):
+                    out["faculty"].append((f, sid, p))
+            for who in participants(req):
+                if (who, day, p) in self.people:
+                    out["people"].append((who, self.people[(who, day, p)], p))
         return {k: sorted(set(v)) for k, v in out.items()}
 
-    def book(self, req_id: str, room: str, day: str, start: int, dur: int) -> None:
+    def book(self, req_id: str, room: str, day: str, start: int, dur: int, req: dict | None = None) -> None:
         for p in block(start, dur):
             self.booked[(room, day, p)] = req_id
+            for who in participants(req or {}):
+                self.people[(who, day, p)] = req_id
 
     def move_session(self, sid: str, to: tuple[str, int, str], by: str) -> None:
         self.assign[sid] = to
@@ -85,9 +114,12 @@ def _rank_placements(ctx: Ctx, req: dict, places: list[tuple[str, str, int]]) ->
     return sorted(places, key=key)
 
 
-def _find_session_move(ctx: Ctx, week: Week, sid: str, avoid: set[tuple[str, str, int]]) -> tuple[str, int, str] | None:
-    """Nearest valid new placement for a session displaced by an institute event."""
+def _find_session_move(ctx: Ctx, week: Week, sid: str, avoid: set[tuple[str, str, int]],
+                       busy_people: set[tuple[str, str, int]] = frozenset()) -> tuple[str, int, str] | None:
+    """Nearest valid new placement for a session displaced by an institute event.
+    The class may not land where its section or teacher is attending an event."""
     s = ctx.sessions[sid]
+    who = [*s["groups"], s["faculty_id"]]
     d0, st0, r0 = week.assign[sid]
     base = {k: v for k, v in week.assign.items()}
     base_v = {(v["rule"], v["detail"]) for v in check_timetable(ctx, base)}
@@ -98,6 +130,8 @@ def _find_session_move(ctx: Ctx, week: Week, sid: str, avoid: set[tuple[str, str
                 if (d, st, r) == (d0, st0, r0):
                     continue
                 if any((r, d, p) in avoid or (r, d, p) in week.booked for p in block(st, s["duration"])):
+                    continue
+                if any((x, d, p) in week.people or (x, d, p) in busy_people for x in who for p in block(st, s["duration"])):
                     continue
                 cost = (0 if d == d0 else 1, 0 if st == st0 else abs(st - st0), r)
                 cands.append((cost, (d, st, r)))
@@ -121,6 +155,8 @@ def _alternative(ctx: Ctx, week: Week, req: dict) -> tuple[str, str, int] | None
     for r in sorted(rooms, key=lambda x: x["capacity"]):
         for d in ctx.days:
             for st in range(1, MAX_PERIOD - dur + 2):
+                if st <= ctx.lunch_after < st + dur - 1:
+                    continue  # an offered slot never runs through lunch
                 b = week.blockers(req, r["id"], d, st)
                 if any(b.values()):
                     continue
@@ -155,25 +191,37 @@ def _fit_problems(ctx: Ctx, req: dict) -> str | None:
     return None
 
 
-def decide_bookings(ctx: Ctx, assign: Assign, locked: dict[str, dict] | None = None) -> dict[str, Any]:
+def decide_bookings(ctx: Ctx, assign: Assign, locked: dict[str, dict] | None = None,
+                    prior_overrides: list[dict] | None = None) -> dict[str, Any]:
     """Decide every Spectra-week request. Returns fest_week (validator format) + explanations.
 
     `locked` holds decisions an approver already confirmed; they keep their room and time
     and are booked before anything else is decided."""
     order = ctx.data["priority_order"]
     week = Week(ctx, assign)
+    base_assign = dict(assign)
     decisions: dict[str, dict] = {}
     explain: dict[str, dict] = {}
     for rid, dec in (locked or {}).items():
         if rid in ctx.cancelled or rid not in ctx.requests:
             continue
         decisions[rid] = dec
-        explain[rid] = {"notes": ["Confirmed by an approver; kept as decided"], "locked": True}
+        explain[rid] = {"notes": ["Confirmed by an approver; kept exactly as confirmed"], "locked": True}
         if dec.get("status") in ("approved", "alternative_offered"):
             req = ctx.requests[rid]
+            # Classes this booking already moved for Week 7 move again first, so the booking keeps its slot.
+            moves = dec.get("moves") or [{"session_id": o["session_id"], "to": [o["day"], o["start_period"], o["room_id"]]}
+                                         for o in (prior_overrides or []) if o.get("displaced_by") == rid]
+            saved = (dict(week.assign), dict(week.overrides))
+            for m in moves:
+                if m["session_id"] in week.assign:
+                    week.move_session(m["session_id"], tuple(m["to"]), rid)
             if not any(week.blockers(req, dec["room_id"], dec["day"], dec["start_period"]).values()):
-                week.book(rid, dec["room_id"], dec["day"], dec["start_period"], req["duration_periods"])
+                week.book(rid, dec["room_id"], dec["day"], dec["start_period"], req["duration_periods"], req)
+                explain[rid]["moved_sessions"] = [m["session_id"] for m in moves]
             else:
+                week.assign, week.overrides = saved
+                week._rebuild()
                 decisions.pop(rid)
                 explain[rid] = {"notes": ["A confirmed booking no longer fits after a timetable change; re-decided"]}
 
@@ -228,18 +276,21 @@ def decide_bookings(ctx: Ctx, assign: Assign, locked: dict[str, dict] | None = N
                 break
             lost_to.append((room, d, st, b))
 
-        # institute events may move regular sessions (Week 7 only)
+        # Institute events may move regular classes for Week 7 only, and move as few as possible:
+        # placements are tried in order of how many classes they would disturb.
         moved = []
         if chosen is None and order.index(eff) <= order.index("institute_event"):
-            for (room, d, st, b) in lost_to:
-                if b["bookings"] or b["maintenance"] or b["groups"]:
-                    continue
-                avoid = {(room, d, p) for p in block(st, req["duration_periods"])}
+            movable = [(len(clash_sessions(b)), i, room, d, st, b) for i, (room, d, st, b) in enumerate(lost_to)
+                       if not (b["bookings"] or b["maintenance"] or b["people"])]
+            for _n, _i, room, d, st, b in sorted(movable)[:60]:
+                per = block(st, req["duration_periods"])
+                avoid = {(room, d, p) for p in per}
+                busy = {(w, d, p) for w in participants(req) for p in per}
                 plan = []
                 saved = (dict(week.assign), dict(week.overrides))
                 ok = True
-                for sid in b["sessions"]:
-                    to = _find_session_move(ctx, week, sid, avoid)
+                for sid in clash_sessions(b):
+                    to = _find_session_move(ctx, week, sid, avoid, busy)
                     if to is None:
                         ok = False
                         break
@@ -254,7 +305,7 @@ def decide_bookings(ctx: Ctx, assign: Assign, locked: dict[str, dict] | None = N
         if chosen:
             room, d, st = chosen
             end = st + req["duration_periods"] - 1
-            week.book(rid, room, d, st, req["duration_periods"])
+            week.book(rid, room, d, st, req["duration_periods"], req)
             reason = f"{CATEGORY_LABEL[eff]}, handled #{rank} in priority order; {ctx.rooms[room]['name']} is free {fmt_slot(d, st, end)}"
             if rr and rr != room:
                 if rr in ctx.rooms and ctx.room_fits_request(req, ctx.rooms[rr]):
@@ -267,10 +318,14 @@ def decide_bookings(ctx: Ctx, assign: Assign, locked: dict[str, dict] | None = N
                 else:
                     why_rr = next((n for n in notes if n.startswith(("Requested", "Room"))), f"{rr} does not fit")
                 reason += f". {why_rr}; {ctx.rooms[room]['name']} meets every need"
+            if participants(req) and not moved:
+                reason += ". Everyone attending is free then, so no class moves"
             if moved:
                 reason += ". Moved for Week 7 only: " + ", ".join(f"{sid} to {to[0]} P{to[1]} {to[2]}" for sid, to in moved)
             decisions[rid] = {"request_id": rid, "status": "approved", "day": d, "start_period": st,
                               "end_period": end, "room_id": room, "reason": reason}
+            if moved:
+                decisions[rid]["moves"] = [{"session_id": sid, "from": list(base_assign[sid]), "to": list(to)} for sid, to in moved]
             explain[rid] = {"rank": rank, "category": eff, "notes": notes, "moved_sessions": [m[0] for m in moved]}
             continue
 
@@ -280,9 +335,15 @@ def decide_bookings(ctx: Ctx, assign: Assign, locked: dict[str, dict] | None = N
             if b["bookings"]:
                 other = ctx.requests[b["bookings"][0]]
                 why.append(f"{room} is taken by {other['requester']} ({other['id']}, {CATEGORY_LABEL[ctx.effective_category(other)]}, higher or earlier)")
+            elif b["people"]:
+                w, other, p = b["people"][0]
+                why.append(f"{ctx.faculty[w]['name'] if w in ctx.faculty else w} is already at {ctx.requests[other]['title'] if other in ctx.requests else other} at {d} P{p}")
             elif b["groups"]:
                 g, sid, p = b["groups"][0]
                 why.append(f"{g} has {sid} at {d} P{p}, and attendance is compulsory")
+            elif b["faculty"]:
+                f, sid, p = b["faculty"][0]
+                why.append(f"{ctx.faculty[f]['name']} teaches {sid} at {d} P{p}, and is attending")
             elif b["sessions"]:
                 why.append(f"{room} has a regular class ({b['sessions'][0]}); only institute events may move classes")
             elif b["maintenance"]:
@@ -294,7 +355,7 @@ def decide_bookings(ctx: Ctx, assign: Assign, locked: dict[str, dict] | None = N
         if alt:
             room, d, st = alt
             end = st + req["duration_periods"] - 1
-            week.book(rid, room, d, st, req["duration_periods"])
+            week.book(rid, room, d, st, req["duration_periods"], req)
             decisions[rid] = {"request_id": rid, "status": "alternative_offered", "day": d, "start_period": st,
                               "end_period": end, "room_id": room,
                               "reason": f"{main}. Nearest free option: {ctx.rooms[room]['name']}, {fmt_slot(d, st, end)}"}

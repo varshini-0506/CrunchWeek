@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 /** A content card. The title leads; `note` is an optional caption under it (never an eyebrow above it). */
 export function Card({ title, note, children, actions, className = "" }: { title?: React.ReactNode; note?: React.ReactNode; children: React.ReactNode; actions?: React.ReactNode; className?: string }) {
   return (
-    <section className={`glass rounded-[16px] p-5 sm:p-6 ${className}`}>
+    <section className={`glass rounded-[8px] p-5 sm:p-6 ${className}`}>
       {(title || actions || note) && (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <div className="min-w-0">
-            {title && <h2 className="text-[17px] font-semibold leading-tight tracking-[-0.01em]">{title}</h2>}
+            {title && <h2 className="font-poster text-[24px] uppercase leading-[0.95] tracking-[0.005em]">{title}</h2>}
             {note && <p className="mt-1 text-[13px] leading-snug text-ink-3">{note}</p>}
           </div>
           {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -20,35 +21,39 @@ export function Card({ title, note, children, actions, className = "" }: { title
   );
 }
 
-/** Page header: the headline states the page's answer, a standfirst explains it, `meta` carries facts like the date. */
+/* Each page opens on its own poster field, like a section of the Spectra poster. Colours from the landing page. */
+const BAND: Record<string, string> = {
+  "/": "band-lake", "/timetable": "band-brass", "/exams": "band-mint", "/spectra": "band-sky", "/request": "band-brass",
+  "/changes": "band-lake", "/insights": "band-mint", "/proof": "band-sky", "/exports": "band-brass", "/audit": "band-lake",
+};
+
+/** Page header: a full-width poster field. The headline states the page's answer, a standfirst explains it, `meta` carries facts like the date. */
 export function PageHead({ title, children, actions, meta }: { title: React.ReactNode; children?: React.ReactNode; actions?: React.ReactNode; meta?: React.ReactNode }) {
+  const band = BAND[usePathname()] ?? "band-lake";
   return (
-    <header className="mb-7 flex flex-wrap items-end justify-between gap-5 border-b border-rule pb-6">
-      <div className="max-w-3xl">
-        <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.025em] sm:text-[32px]">{title}</h1>
-        {children && <p className="mt-2 max-w-[68ch] text-[15px] leading-[1.6] text-ink-2">{children}</p>}
-        {meta && <p className="mt-3 text-[13px] text-ink-3 tabular">{meta}</p>}
+    <header className={`band ${band} relative mx-[calc(50%-50vw)] -mt-8 mb-8 overflow-hidden lg:-mt-10`}>
+      <svg aria-hidden viewBox="0 0 200 200" className="band-sun pointer-events-none absolute -bottom-24 right-[-40px] h-[300px] w-[300px] sm:right-[6vw]">
+        <defs><clipPath id="sun-cut"><circle cx="100" cy="100" r="100" /></clipPath></defs>
+        <g clipPath="url(#sun-cut)" fill="currentColor">
+          <rect x="0" y="0" width="200" height="104" />
+          {[116, 134, 152, 170, 188].map((y, i) => <rect key={y} x="0" y={y} width="200" height={10 - i * 1.4} />)}
+        </g>
+      </svg>
+      <div className="relative mx-auto flex max-w-[1280px] flex-wrap items-end justify-between gap-6 px-4 pb-10 pt-10 sm:px-8 sm:pb-12 sm:pt-14">
+        <div className="max-w-[880px]">
+          <h1 className="poster-line font-poster text-[clamp(42px,6vw,92px)] uppercase leading-[0.9] tracking-[-0.005em] text-balance">{title}</h1>
+          {children && <p className="poster-line mt-4 max-w-[68ch] text-[17px] font-medium leading-[1.5] [animation-delay:90ms]">{children}</p>}
+          {meta && <p className="poster-line mt-3 text-[14px] text-ink-2 tabular [animation-delay:140ms]">{meta}</p>}
+        </div>
+        {actions && <div className="poster-line relative flex flex-wrap gap-2 [animation-delay:180ms]">{actions}</div>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </header>
   );
 }
 
-/** Counts up to a number once, with an ease-out. */
-export function CountUp({ to, ms = 1100 }: { to: number; ms?: number }) {
-  const [v, setV] = useState(0);
-  const raf = useRef(0);
-  useEffect(() => {
-    const t0 = performance.now();
-    const tick = (t: number) => {
-      const k = Math.min(1, (t - t0) / ms);
-      setV(Math.round(to * (1 - Math.pow(1 - k, 3))));
-      if (k < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-  }, [to, ms]);
-  return <span className="tabular">{v}</span>;
+/** A counted figure. App screens don't perform entrances, so it is shown as it is (kept as a component so callers don't change). */
+export function CountUp({ to }: { to: number; ms?: number }) {
+  return <span className="tabular">{to}</span>;
 }
 
 export function Button({ children, onClick, kind = "primary", disabled, type = "button", small }: { children: React.ReactNode; onClick?: () => void; kind?: "primary" | "secondary" | "danger" | "ghost"; disabled?: boolean; type?: "button" | "submit"; small?: boolean }) {
@@ -61,7 +66,7 @@ export function Button({ children, onClick, kind = "primary", disabled, type = "
   const pad = kind === "ghost" ? (small ? "text-[13px]" : "text-[15px]") : small ? "px-3 py-1 text-[13px]" : "px-4 py-2 text-[14px]";
   return (
     <button type={type} onClick={onClick} disabled={disabled}
-      className={`inline-flex items-center gap-1 rounded-full font-medium transition-[filter,background-color,transform] duration-150 active:scale-[.98] disabled:cursor-not-allowed disabled:active:scale-100 disabled:opacity-70 ${pad} ${k}`}>
+      className={`inline-flex items-center gap-1 rounded-[6px] font-semibold transition-[filter,background-color,transform] duration-150 active:scale-[.98] disabled:cursor-not-allowed disabled:active:scale-100 disabled:opacity-70 ${pad} ${k}`}>
       {children}{kind === "ghost" && <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>}
     </button>
   );

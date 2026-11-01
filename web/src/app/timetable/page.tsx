@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useApp } from "@/components/AppShell";
-import { Badge, Button, Card, Empty, ErrorBox, Spinner, useBusy } from "@/components/ui";
+import { Badge, Button, Card, Empty, ErrorBox, PageHead, Spinner, useBusy } from "@/components/ui";
 import { api, DAY_NAME, DAYS, fmtHour, periodHour, type SessionRow } from "@/lib/api";
 
-type Event = { request_id: string; title: string; requester: string; day: string; start_period: number; end_period: number; room_id: string; status: string; category: string };
+type Event = { request_id: string; title: string; requester: string; day: string; start_period: number; end_period: number; room_id: string; status: string; category: string; groups?: string[]; faculty?: string[] };
 type TT = { sessions: SessionRow[]; events: Event[]; hard_violation_count: number; soft_total: number };
 type Mode = "group" | "faculty" | "room";
 
@@ -17,7 +17,7 @@ const KIND_STYLE: Record<string, string> = {
 
 export default function TimetablePage() {
   const { user, meta, version } = useApp();
-  const [week, setWeek] = useState<"regular" | "spectra">("regular");
+  const [week, setWeek] = useState<"regular" | "spectra">("spectra");
   const [mode, setMode] = useState<Mode>(user?.role === "faculty" ? "faculty" : "group");
   const [key, setKey] = useState<string>(user?.faculty_id ?? "Y1-A");
   const [tt, setTt] = useState<TT | null>(null);
@@ -42,7 +42,8 @@ export default function TimetablePage() {
 
   const visible = useMemo(() => (tt?.sessions ?? []).filter((s) =>
     mode === "group" ? s.groups.includes(key) : mode === "faculty" ? s.faculty_id === key : s.room_id === key), [tt, mode, key]);
-  const events = useMemo(() => (tt?.events ?? []).filter((e) => mode === "room" && e.room_id === key), [tt, mode, key]);
+  // A Spectra event shows on the room's timetable and on the timetable of every section and teacher attending it.
+  const events = useMemo(() => (tt?.events ?? []).filter((e) => (mode === "room" ? e.room_id === key : mode === "group" ? e.groups?.includes(key) : e.faculty?.includes(key))), [tt, mode, key]);
   const lastPeriod = week === "spectra" ? 13 : 9;
   const row = (p: number) => (p <= 5 ? p + 1 : p + 2);
 
@@ -52,10 +53,8 @@ export default function TimetablePage() {
   const hours = visible.reduce((a, s) => a + s.duration, 0);
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3 border-b border-rule pb-6">
-        <div className="mr-auto">
-          <h1 className="text-[28px] font-semibold leading-[1.15] tracking-[-0.025em] sm:text-[32px]">{tt.hard_violation_count === 0 ? "Everyone has somewhere to be, and nobody is in two places." : "The week"}</h1>
-        </div>
+      <PageHead title={<>{tt.hard_violation_count === 0 ? "Nobody is in two places." : `${tt.hard_violation_count} double bookings to fix`}</>}
+        actions={
         <div className="seg">
           {(["regular", "spectra"] as const).map((w) => (
             <button key={w} onClick={() => setWeek(w)} className={`px-3 py-1.5 ${week === w ? "bg-accent" : "text-ink-2"}`}>
@@ -63,7 +62,9 @@ export default function TimetablePage() {
             </button>
           ))}
         </div>
-      </div>
+        }>
+        {tt.sessions.length} classes placed for {meta.groups.length} sections, {meta.faculty.length} teachers and {meta.rooms.length} rooms{week === "spectra" ? ", with Spectra events in the evenings" : ""}.
+      </PageHead>
       <div className="flex flex-wrap items-center gap-2">
         <div className="seg">
           {(["group", "faculty", "room"] as const).map((m) => (
@@ -78,15 +79,15 @@ export default function TimetablePage() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
         <div className="glass overflow-x-auto rounded-[16px] p-2">
-          <div className="grid min-w-[720px] text-xs [&>div]:border-rule" style={{ gridTemplateColumns: "64px repeat(5, minmax(120px, 1fr))", gridTemplateRows: `36px repeat(5, minmax(56px, auto)) 24px repeat(${lastPeriod - 5}, minmax(56px, auto))` }}>
-            <div className="border-b-2 border-r border-b-rule bg-paper-2" style={{ gridRow: 1, gridColumn: 1 }} />
-            {DAYS.map((d, i) => <div key={d} className="border-b border-b-rule bg-paper-2 p-2.5 text-[13px] font-medium text-ink" style={{ gridRow: 1, gridColumn: i + 2 }}>{DAY_NAME[d]}</div>)}
+          <div className="grid min-w-[760px] text-[13px] [&>div]:border-rule" style={{ gridTemplateColumns: "64px repeat(5, minmax(120px, 1fr))", gridTemplateRows: `36px repeat(5, minmax(56px, auto)) 24px repeat(${lastPeriod - 5}, minmax(56px, auto))` }}>
+            <div className="tt-head rounded-tl-[8px]" style={{ gridRow: 1, gridColumn: 1 }} />
+            {DAYS.map((d, i) => <div key={d} className={`tt-head font-poster px-2.5 text-[18px] uppercase leading-[36px] tracking-[0.02em] ${i === 4 ? "rounded-tr-[8px]" : ""}`} style={{ gridRow: 1, gridColumn: i + 2 }}>{DAY_NAME[d]}</div>)}
             {Array.from({ length: lastPeriod }, (_, i) => i + 1).map((p) => (
               <div key={p} className={`border-r border-t p-1 text-ink-3 ${p >= 10 ? "bg-plum-soft" : ""}`} style={{ gridRow: row(p), gridColumn: 1 }}>
                 <div className="font-medium tabular">{fmtHour(periodHour(p))}</div>
               </div>
             ))}
-            <div className="border-t bg-fill-2 text-center text-[12px] leading-6 text-ink-3" style={{ gridRow: 7, gridColumn: "1 / span 6" }}>Lunch · 1 to 2 pm</div>
+            <div className="tt-lunch border-t text-center text-[13px] font-medium leading-6 text-ink-2" style={{ gridRow: 7, gridColumn: "1 / span 6" }}>Lunch · 1 to 2 pm</div>
             {DAYS.map((d, i) => Array.from({ length: lastPeriod }, (_, k) => k + 1).map((p) => (
               <div key={`${d}${p}`} className={`border-t ${i ? "border-l" : ""} ${p >= 10 ? "bg-plum-soft" : ""}`} style={{ gridRow: row(p), gridColumn: i + 2 }} />
             )))}
@@ -94,12 +95,12 @@ export default function TimetablePage() {
               <div key={`${day}${start}`} className="z-10 flex flex-col gap-1 p-1" style={{ gridRow: `${row(start)} / span ${dur}`, gridColumn: DAYS.indexOf(day as typeof DAYS[number]) + 2 }}>
                 {items.map((s) => (
                   <button key={s.session_id} onClick={() => setSel(s.session_id)}
-                    className={`h-full rounded-[8px] p-2 text-left text-ink transition duration-150 hover:-translate-y-px hover:shadow-[var(--shadow-pop)] ${KIND_STYLE[s.kind] ?? "blk"} ${sel === s.session_id ? "outline-2 outline-accent" : ""} ${s.recently_moved ? "outline-2 outline-dashed outline-warn" : ""}`}>
-                    <div className="text-[12px] font-semibold">{s.course_id} <span className="font-normal text-ink-3">{s.kind}</span></div>
+                    className={`h-full rounded-[8px] p-2 text-left text-ink transition-[transform,filter] duration-150 hover:-translate-y-px hover:brightness-[0.97] ${KIND_STYLE[s.kind] ?? "blk"} ${sel === s.session_id ? "outline-[3px] outline-offset-2 outline-[var(--base-label)]" : ""} ${s.recently_moved ? "outline-2 outline-dashed outline-warn" : ""}`}>
+                    <div className="text-[13px] font-semibold">{s.course_id} <span className="font-normal text-ink-3">{s.kind}</span></div>
                     <div className="truncate text-ink-2">{s.title}</div>
                     <div className="text-ink-3">{mode === "room" ? s.groups.join(", ") : s.room_id}{mode !== "faculty" && ` · ${s.faculty_id}`}</div>
                     {s.basket_slot && <div className="opacity-70">Elective basket {s.basket_slot}</div>}
-                    {s.override_by && <div className="font-medium text-plum">Moved this week for {s.override_by}</div>}
+                    {s.override_by && <div className="font-medium text-plum">Moved this week for {tt.events.find((e) => e.request_id === s.override_by)?.title ?? s.override_by}</div>}
                     {s.recently_moved && <div className="font-medium text-warn">Moved by the last change</div>}
                   </button>
                 ))}
@@ -109,16 +110,16 @@ export default function TimetablePage() {
               <div key={e.request_id} className="z-10 p-1" style={{ gridRow: `${row(e.start_period)} / span ${e.end_period - e.start_period + 1}`, gridColumn: DAYS.indexOf(e.day as typeof DAYS[number]) + 2 }}>
                 <div className="blk blk-event h-full rounded-[8px] p-2 text-ink">
                   <div className="mb-1"><Badge s={e.status} /></div>
-                  <div className="font-semibold">{e.title}</div><div className="text-ink-3">{e.requester}</div>
+                  <div className="font-semibold">{e.title}</div><div className="text-ink-3">{mode === "room" ? e.requester : `${meta.rooms.find((x) => x.id === e.room_id)?.name ?? e.room_id} · attending`}</div>
                 </div>
               </div>
             ))}
           </div>
           {visible.length === 0 && events.length === 0 && <div className="p-4"><Empty>Nothing scheduled here this week.</Empty></div>}
         </div>
-        <SessionPanel key={sel ?? "none"} sid={sel} row={tt.sessions.find((s) => s.session_id === sel)} onClose={() => setSel(null)} />
+        <SessionPanel key={sel ?? "none"} sid={sel} row={tt.sessions.find((s) => s.session_id === sel)} onClose={() => setSel(null)} visible={visible} label={choices.find((c) => c.id === key)?.label ?? key} />
       </div>
-      <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] text-ink-2">
+      <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-ink-2">
         <li className="flex items-center gap-1.5"><i className="blk blk-lecture h-3 w-3 rounded-[3px]" />Lecture</li>
         <li className="flex items-center gap-1.5"><i className="blk blk-tutorial h-3 w-3 rounded-[3px]" />Tutorial</li>
         <li className="flex items-center gap-1.5"><i className="blk blk-lab h-3 w-3 rounded-[3px]" />Lab</li>
@@ -144,7 +145,7 @@ function groupCells(rows: SessionRow[]) {
 type Explain = { summary: string; room_reason: string; ruled_out: { reason: string; times: number; example?: string }[]; costs_here: string[]; other_valid_times: string[]; plain?: { text: string; source: string } };
 type Option = { day: string; start_period: number; room_id: string; soft_delta: number; room_only: boolean; notes: string[] };
 
-function SessionPanel({ sid, row, onClose }: { sid: string | null; row?: SessionRow; onClose: () => void }) {
+function SessionPanel({ sid, row, onClose, visible, label }: { sid: string | null; row?: SessionRow; onClose: () => void; visible: SessionRow[]; label: string }) {
   const { user, meta, refresh } = useApp();
   const [ex, setEx] = useState<Explain | null>(null);
   const [opts, setOpts] = useState<Option[] | null>(null);
@@ -157,7 +158,7 @@ function SessionPanel({ sid, row, onClose }: { sid: string | null; row?: Session
     api<{ options: Option[] }>(`/timetable/options/${sid}`).then((d) => setOpts(d.options)).catch(() => {});
   }, [sid]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!sid || !row) return <Card className="hidden lg:block"><div className="py-6 text-center"><div className="text-[15px] font-medium">Pick a class</div><p className="mx-auto mt-1 max-w-[30ch] text-[14px] leading-relaxed text-ink-2">Click any class on the grid to see why it sits there, and which other slots and rooms would also work.</p></div></Card>;
+  if (!sid || !row) return <WeekSummary rows={visible} label={label} />;
   const canMove = user?.role === "admin" || user?.role === "department_coordinator";
   const simple = () => run(async () => setEx(await api<Explain>(`/timetable/explain/${sid}?ai_words=true`)));
   const move = (o: Option) => run(async () => {
@@ -180,7 +181,7 @@ function SessionPanel({ sid, row, onClose }: { sid: string | null; row?: Session
         {!ex ? <Spinner label="Working out why…" /> : (
           <div className="space-y-2">
             <h3 className="text-[15px] font-semibold">Why here?</h3>
-            {ex.plain ? <p className="rounded-[10px] bg-plum-soft p-3 text-plum">{ex.plain.text} <span className="block text-xs opacity-60">({ex.plain.source === "claude" ? "reworded by AI from the engine's facts" : "engine summary"})</span></p> : <p>{ex.summary}</p>}
+            {ex.plain ? <p className="rounded-[10px] bg-plum-soft p-3 text-plum">{ex.plain.text} <span className="block text-[13px] opacity-60">({ex.plain.source === "claude" ? "reworded by AI from the engine's facts" : "engine summary"})</span></p> : <p>{ex.summary}</p>}
             <p className="text-ink-2">{ex.room_reason}.</p>
             {ex.ruled_out.length > 0 && (
               <ul className="list-disc pl-5 text-ink-2">
@@ -198,8 +199,8 @@ function SessionPanel({ sid, row, onClose }: { sid: string | null; row?: Session
               {opts.slice(0, 8).map((o) => (
                 <li key={`${o.day}${o.start_period}${o.room_id}`} className="flex items-center gap-2 rounded-[10px] bg-fill-2 p-2.5">
                   <div className="flex-1">
-                    <div>{DAY_NAME[o.day]} {fmtHour(periodHour(o.start_period))} · {o.room_id}{o.room_only && <span className="ml-1 text-xs text-ok">same time</span>}</div>
-                    <div className="text-xs text-ink-3">{o.soft_delta === 0 ? "just as good" : o.soft_delta > 0 ? `${o.soft_delta} more compromise${o.soft_delta === 1 ? "" : "s"}` : `${-o.soft_delta} fewer compromise${o.soft_delta === -1 ? "" : "s"}`}{o.notes.length ? ` · ${o.notes.join("; ")}` : ""}</div>
+                    <div>{DAY_NAME[o.day]} {fmtHour(periodHour(o.start_period))} · {o.room_id}{o.room_only && <span className="ml-1 text-[13px] text-ok">same time</span>}</div>
+                    <div className="text-[13px] text-ink-3">{o.soft_delta === 0 ? "just as good" : o.soft_delta > 0 ? `${o.soft_delta} more compromise${o.soft_delta === 1 ? "" : "s"}` : `${-o.soft_delta} fewer compromise${o.soft_delta === -1 ? "" : "s"}`}{o.notes.length ? ` · ${o.notes.join("; ")}` : ""}</div>
                   </div>
                   {canMove && <Button small kind="secondary" disabled={busy || row.fixed} onClick={() => move(o)}>{user?.role === "admin" ? "Move" : "Propose"}</Button>}
                 </li>
@@ -212,3 +213,32 @@ function SessionPanel({ sid, row, onClose }: { sid: string | null; row?: Session
   );
 }
 
+
+/** Shown beside the grid until a class is picked: this view's week in numbers, so the column is never empty. */
+function WeekSummary({ rows, label }: { rows: SessionRow[]; label: string }) {
+  const kinds = (["lecture", "tutorial", "lab"] as const).map((k) => [k, rows.filter((r) => r.kind === k).length] as const);
+  const perDay = DAYS.map((d) => [d, rows.filter((r) => r.day === d).reduce((a, r) => a + r.duration, 0)] as const);
+  const max = Math.max(1, ...perDay.map(([, h]) => h));
+  const busiest = perDay.reduce((a, b) => (b[1] > a[1] ? b : a), perDay[0]);
+  const late = rows.filter((r) => periodHour(r.start_period + r.duration - 1) >= 17).length;
+  return (
+    <Card title={label} note="Pick any class on the grid to see why it sits there and where else it could go." className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
+      <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-[10px] bg-[var(--edge)] text-[13px]">
+        {kinds.map(([k, n]) => (
+          <div key={k} className={`blk blk-${k} p-3`}><dt className="capitalize text-ink-2">{k}s</dt><dd className="font-poster mt-1 text-[30px] leading-none tabular">{n}</dd></div>
+        ))}
+      </dl>
+      <h3 className="font-poster mb-2 mt-5 text-[22px] uppercase leading-none">Hours each day</h3>
+      <ul className="space-y-1.5 text-[13px]">
+        {perDay.map(([d, h]) => (
+          <li key={d} className="grid grid-cols-[84px_1fr_32px] items-center gap-2">
+            <span className="text-ink-2">{DAY_NAME[d]}</span>
+            <span className="h-2 rounded-full bg-fill"><span className={`block h-2 rounded-full ${d === busiest[0] && h > 0 ? "bg-[#c0330f]" : "bg-[#23788a]"}`} style={{ width: `${(h / max) * 100}%` }} /></span>
+            <span className={`text-right tabular ${h ? "" : "text-ink-3"}`}>{h || "–"}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-[14px] text-ink">{busiest[1] > 0 ? `${DAY_NAME[busiest[0]]} is the longest day, at ${busiest[1]} hours.` : "Nothing scheduled this week."}{late ? ` ${late} class${late === 1 ? " runs" : "es run"} to 5 pm or later.` : ""}</p>
+    </Card>
+  );
+}

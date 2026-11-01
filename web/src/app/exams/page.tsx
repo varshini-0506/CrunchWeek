@@ -28,10 +28,10 @@ export default function ExamsPage() {
         Each paper gets one sitting and enough rooms for alternate seating (half of every room). No section sits two papers at once, and two on the same day are avoided.
       </PageHead>
       <ul className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[13px] text-ink-2">
-        <li className="flex items-baseline gap-2"><b className="text-[20px] font-semibold text-ink tabular">{data.placements.length}</b>papers placed</li>
-        <li className="flex items-baseline gap-2"><b className={`text-[20px] font-semibold tabular ${data.violations.length ? "text-bad" : "text-ok"}`}>{data.violations.length}</b>sections double-booked</li>
-        <li className="flex items-baseline gap-2"><b className={`text-[20px] font-semibold tabular ${data.penalty ? "text-warn" : "text-ok"}`}>{data.penalty / 5}</b>sections with two papers on one day</li>
-        <li className="flex items-baseline gap-2"><b className="text-[20px] font-semibold text-ink tabular">{rooms}</b>halls used, each at half capacity</li>
+        <li className="flex items-baseline gap-2"><b className="text-[24px] font-normal text-ink tabular">{data.placements.length}</b>papers placed</li>
+        <li className="flex items-baseline gap-2"><b className={`text-[24px] font-normal tabular ${data.violations.length ? "text-bad" : "text-ink"}`}>{data.violations.length}</b>sections double-booked</li>
+        <li className="flex items-baseline gap-2"><b className={`text-[24px] font-normal tabular ${data.penalty ? "text-warn" : "text-ink"}`}>{data.penalty / 5}</b>sections with two papers on one day</li>
+        <li className="flex items-baseline gap-2"><b className="text-[24px] font-normal text-ink tabular">{rooms}</b>halls used, each at half capacity</li>
       </ul>
       <div className="glass overflow-x-auto rounded-[16px] p-2">
         <table className="w-full min-w-[900px] table-fixed text-sm">
@@ -39,11 +39,11 @@ export default function ExamsPage() {
           <tbody>
             {data.calendar.sessions.map((s) => (
               <tr key={s.id} className="border-t align-top">
-                <td className="p-2 font-medium">{s.id === "AM" ? "Morning" : s.id === "PM" ? "Afternoon" : s.id}<div className="text-xs font-normal text-ink-3 tabular">{s.start} to {s.end}</div></td>
+                <td className="p-2 font-medium">{s.id === "AM" ? "Morning" : s.id === "PM" ? "Afternoon" : s.id}<div className="text-[13px] font-normal text-ink-3 tabular">{s.start} to {s.end}</div></td>
                 {data.calendar.days.map((d) => (
                   <td key={d} className="space-y-1 p-2">
                     {shown.filter((p) => p.day === d && p.session === s.id).map((p) => (
-                      <div key={p.exam_id} className="blk blk-lab rounded-[8px] p-2 text-xs">
+                      <div key={p.exam_id} className="blk blk-lab rounded-[8px] p-2 text-[13px]">
                         <div className="font-semibold">{p.course_ids.join(", ")}</div>
                         <div className="text-ink-2">{p.groups.join(", ")} · {p.size} students</div>
                         <div className="text-ink-3">{p.rooms.join(", ")} · {p.seats} seats</div>

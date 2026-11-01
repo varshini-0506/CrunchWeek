@@ -65,7 +65,7 @@ export type BookingRequest = {
   id: string; submitted_at: string; requester: string; role: string; department: string | null;
   requested_category: string; title: string; attendance: number; duration_periods: number;
   windows: { day: string; from_period: number; to_period: number }[]; room_types: string[]; needs: string[];
-  requested_room: string | null; mandatory_for_groups: string[]; raw_text?: string;
+  requested_room: string | null; mandatory_for_groups: string[]; attending_faculty?: string[]; raw_text?: string;
 };
 
 export type BookingRow = {

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Chevron, useApp } from "@/components/AppShell";
 import { Button, Card, ErrorBox, PageHead, Spinner, useBusy } from "@/components/ui";
 import { IconCheck } from "@/components/icons";
-import { api } from "@/lib/api";
+import { api, DAY_NAME, DAYS, type SessionRow } from "@/lib/api";
 
 type Report = { hard_violation_count: number; soft_total: number; bookings?: { booking_score: number; approved: number; alternatives: number; rejected: number; priority_inversions: unknown[] }; exam_soft_penalty?: number; stability?: { sessions_moved: number; time_changed: number; room_only_changed: number } };
 type Validation = { schedule: Report; schedule_after?: Report };
@@ -14,10 +14,10 @@ type Validation = { schedule: Report; schedule_after?: Report };
 const TRADE: Record<string, [string, string]> = {
   S1: ["time a teacher asked to avoid", "times teachers asked to avoid"],
   S2: ["gap in a section's day", "gaps in sections' days"],
-  S3: ["room much bigger than the class", "rooms much bigger than the class"],
-  S4: ["class at 5 pm", "classes at 5 pm"],
-  S5: ["unusually long day", "unusually long days"],
-  S6: ["course twice in one day", "courses twice in one day"],
+  S3: ["section day over 6 hours", "section days over 6 hours"],
+  S4: ["course lectured twice in one day", "courses lectured twice in one day"],
+  S5: ["room under 40% full", "rooms under 40% full"],
+  S6: ["class at 5 pm", "classes at 5 pm"],
 };
 
 export default function Today() {
@@ -25,6 +25,7 @@ export default function Today() {
   const [val, setVal] = useState<Validation | null>(null);
   const [soft, setSoft] = useState<Record<string, number> | null>(null);
   const [fest, setFest] = useState<{ hosted: number; nearby: number; declined: number; total: number } | null>(null);
+  const press = usePressure();
   const { busy, error, run } = useBusy();
   const isAdmin = user?.role === "admin";
 
@@ -59,7 +60,7 @@ export default function Today() {
             <Button disabled={busy || status.job.status === "running"} onClick={() => start("/generate")}>Plan again from scratch</Button>
           </>
         )}>
-        Good to see you, {first}. Here is where CIT&apos;s week stands.
+        {press?.finding ?? <>Good to see you, {first}. Here is where CIT&apos;s week stands.</>}
       </PageHead>
       <ErrorBox error={error} />
 
@@ -72,7 +73,7 @@ export default function Today() {
             <dl className="grid grid-cols-2 lg:grid-cols-4">
               <Metric label="Classes placed" href="/timetable" value={<><span>{status.sessions}</span><span className="text-[15px] font-medium text-ink-3"> / {total}</span></>}
                 note={status.sessions >= total ? "Every class has a room and a time." : `${total - status.sessions} classes still need a slot.`} />
-              <Metric label="Double bookings" href="/timetable" value={clashFree ? <span className="text-ok">0</span> : <span className="text-bad">{status.hard_violations}</span>}
+              <Metric label="Double bookings" href="/timetable" value={clashFree ? <span>0</span> : <span className="text-bad">{status.hard_violations}</span>}
                 note={clashFree ? "No student, teacher or room is ever in two places." : "Open the week to see who is double-booked."} />
               <Metric label="Spectra events with a venue" href="/spectra" value={<><span>{fest?.hosted ?? status.approved + status.alternatives}</span><span className="text-[15px] font-medium text-ink-3"> / {fest?.total ?? totalReq}</span></>}
                 note={fest ? `${fest.nearby ? `${fest.nearby} got a nearby slot. ` : ""}${fest.declined} couldn't be hosted, with the reason.` : " "} />
@@ -86,30 +87,32 @@ export default function Today() {
             </div>
           </section>
 
-          <section className={isAdmin ? "lg:col-span-6" : "lg:col-span-12"}>
-            <h2 className="mb-2.5 px-1 text-[15px] font-semibold">Next steps</h2>
-            <div className="grouped">
+          <PressureMatrix p={press} />
+
+          <section className={`flex flex-col ${isAdmin ? "lg:col-span-6" : "lg:col-span-12"}`}>
+            <h2 className="font-poster mb-3 px-1 text-[26px] uppercase leading-none">Next steps</h2>
+            <div className="grouped flex-1">
               <Row href="/spectra" n={status.pending_bookings} one="Room request to approve" many="Room requests to approve" />
               {user?.role !== "club" && <Row href="/changes" n={status.pending_changes} one="Timetable change to review" many="Timetable changes to review" />}
               <Row href="/request" label="Ask for a room" />
               <Row href="/timetable" label={user?.role === "faculty" ? "See my week" : "Open the week"} />
               {user?.role !== "club" && <Row href="/changes" label="Report an absence" />}
             </div>
-            <p className="mt-2 px-1 text-[12px] text-ink-3">{status.applied_changes === 0 ? "No changes published since the plan was made." : `${status.applied_changes} change${status.applied_changes === 1 ? "" : "s"} published since the plan was made.`}</p>
+            <p className="mt-2 px-1 text-[13px] text-ink-3">{status.applied_changes === 0 ? "No changes published since the plan was made." : `${status.applied_changes} change${status.applied_changes === 1 ? "" : "s"} published since the plan was made.`}</p>
           </section>
 
           {isAdmin && (
-            <section className="lg:col-span-6">
-              <h2 className="mb-2.5 px-1 text-[15px] font-semibold">Independent check, for the judges</h2>
+            <section className="flex flex-col lg:col-span-6">
+              <h2 className="font-poster mb-3 px-1 text-[26px] uppercase leading-none">Independent check, for the judges</h2>
               {!val ? <div className="grouped"><Spinner label="Running the organisers' checker…" /></div> : (
-                <div className="grouped">
+                <div className="grouped flex-1">
                   <Check name="The plan" r={val.schedule} />
                   {val.schedule_after ? <Check name="After published changes" r={val.schedule_after} /> :
                     <div className="px-4 py-3 text-[13px] text-ink-3">Publish a change (try the sample on Changes) and its check appears here too.</div>}
                   <Link href="/exports" className="flex items-center gap-3 px-4 py-3 text-[15px] transition hover:bg-fill-2"><span className="flex-1">Download the files</span><Chevron /></Link>
                 </div>
               )}
-              <p className="mt-2 px-1 text-[12px] leading-relaxed text-ink-3">
+              <p className="mt-2 px-1 text-[13px] leading-relaxed text-ink-3">
                 Planned with Google OR-Tools in {Math.round(status.solve.seconds ?? 0)} seconds (midsems in {Math.round(status.solve.exam_seconds ?? 0)}), and no better plan exists under the rules. The AI helper never decides anything.
               </p>
             </section>
@@ -124,8 +127,8 @@ function Metric({ label, value, note, href }: { label: string; value: React.Reac
   return (
     <Link href={href} className="group border-rule p-5 transition-colors duration-150 hover:bg-fill-2 [&:nth-child(n+2)]:border-l max-lg:[&:nth-child(3)]:border-l-0 max-lg:[&:nth-child(n+3)]:border-t">
       <dt className="flex items-center text-[13px] font-medium text-ink-2"><span className="flex-1">{label}</span><span className="opacity-0 transition-opacity group-hover:opacity-100"><Chevron /></span></dt>
-      <dd className="mt-2 text-[28px] font-semibold leading-none tracking-[-0.02em] tabular">{value}</dd>
-      <p className="mt-2.5 text-[13px] leading-snug text-ink-2">{note}</p>
+      <dd className="mt-2 text-[30px] font-normal leading-none tracking-[-0.02em] tabular">{value}</dd>
+      <p className="mt-2.5 text-[14px] leading-snug text-ink-2">{note}</p>
     </Link>
   );
 }
@@ -134,7 +137,7 @@ function Row({ href, n, one, many, label }: { href: string; n?: number; one?: st
   return (
     <Link href={href} className="flex min-h-11 items-center gap-3 px-4 py-2.5 text-[15px] transition-colors hover:bg-fill-2">
       <span className="flex-1">{label ?? (n === 1 ? one : many)}</span>
-      {n !== undefined && <span className={`tabular ${n ? "rounded-full bg-bad px-2 text-[13px] font-semibold text-white" : "text-ink-3"}`}>{n}</span>}
+      {n !== undefined && <span className={`tabular ${n ? "rounded-full bg-bad-soft px-2 text-[13px] font-semibold text-bad" : "text-ink-3"}`}>{n}</span>}
       <Chevron />
     </Link>
   );
@@ -144,7 +147,7 @@ function Check({ name, r }: { name: string; r: Report }) {
   const ok = r.hard_violation_count === 0;
   return (
     <div className="flex items-start gap-3 px-4 py-3">
-      <span className={`mt-0.5 grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full text-white ${ok ? "bg-ok" : "bg-bad"}`}>{ok ? <IconCheck className="h-3.5 w-3.5" /> : "!"}</span>
+      <span className={`mt-0.5 grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full ${ok ? "bg-ok-soft text-ok" : "bg-bad-soft text-bad"}`}>{ok ? <IconCheck className="h-3.5 w-3.5" /> : "!"}</span>
       <div className="text-[15px]">
         <div>{name}: {ok ? "passed" : "needs attention"}</div>
         <div className="text-[13px] text-ink-2">
@@ -187,5 +190,104 @@ function MyCard() {
         ))}</ul>
       )}
     </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ Week 7 venue pressure
+   The fest venues down the side, Monday to Friday across, and in each cell the hours still free
+   between 8 am and 10 pm (13 bookable hours; lunch is closed). Plain cells have room to spare;
+   the vermilion deepens as a venue runs out, so the crunch shows before anyone asks for it. */
+
+const VENUES = ["AUD", "SH-1", "SH-2", "OAT", "CS-LAB-1", "CS-LAB-2"];
+const OPEN_HOURS = 13;
+type PEvent = { request_id: string; title: string; day: string; start_period: number; end_period: number; room_id: string };
+type Cell = { free: number; classes: number; events: number; clsH: number; evH: number };
+type Pressure = { rows: { id: string; name: string; capacity: number; cells: Record<string, Cell> }[]; finding: string; tightest: { day: string; free: number } };
+
+function usePressure(): Pressure | null {
+  const { meta, version, status } = useApp();
+  const [tt, setTt] = useState<{ sessions: SessionRow[]; events: PEvent[] } | null>(null);
+  useEffect(() => {
+    if (!status?.timetable) return;
+    api<{ sessions: SessionRow[]; events: PEvent[] }>("/timetable?week=spectra").then(setTt).catch(() => setTt(null));
+  }, [status?.timetable, version]);
+  if (!tt || !meta) return null;
+  const rows = VENUES.map((id) => {
+    const room = meta.rooms.find((r) => r.id === id);
+    const cells: Record<string, Cell> = {};
+    for (const d of DAYS) {
+      const cls = tt.sessions.filter((s) => s.room_id === id && s.day === d);
+      const evs = tt.events.filter((e) => e.room_id === id && e.day === d);
+      const clsH = cls.reduce((a, s) => a + s.duration, 0);
+      const evH = evs.reduce((a, e) => a + e.end_period - e.start_period + 1, 0);
+      cells[d] = { free: Math.max(0, OPEN_HOURS - clsH - evH), classes: cls.length, events: evs.length, clsH: Math.min(clsH, OPEN_HOURS), evH: Math.min(evH, OPEN_HOURS - Math.min(clsH, OPEN_HOURS)) };
+    }
+    return { id, name: room?.name ?? id, capacity: room?.capacity ?? 0, cells };
+  });
+  // The finding: the day with the least free time across the fest venues, and the venue that is tightest on it.
+  const dayFree = DAYS.map((d) => [d, rows.reduce((a, r) => a + r.cells[d].free, 0)] as const);
+  const [day] = dayFree.reduce((a, b) => (b[1] < a[1] ? b : a));
+  const worst = rows.reduce((a, r) => (r.cells[day].free < a.cells[day].free ? r : a));
+  const w = worst.cells[day].free;
+  const finding = `${DAY_NAME[day]} is the tightest day of Spectra week: ${worst.name} has ${w === 0 ? "no hours" : w === 1 ? "1 hour" : `${w} hours`} left of ${OPEN_HOURS}.`;
+  return { rows, finding, tightest: { day, free: w } };
+}
+
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+/* One bar per venue per day: lake = hours taken by classes, vermilion = hours taken by Spectra events, empty = still free. */
+function DayBar({ c, name, day }: { c: Cell; name: string; day: string }) {
+  const tight = c.free <= 2;
+  const what = [c.classes && `${c.classes} class${c.classes === 1 ? "" : "es"}`, c.events && plural(c.events, "Spectra event")].filter(Boolean).join(" and ") || "nothing booked";
+  return (
+    <div title={`${name}, ${day}: ${what}. ${c.free} of ${OPEN_HOURS} hours still free.`} className="min-w-0">
+      <div className="flex h-6 overflow-hidden rounded-[4px] bg-fill">
+        {c.clsH > 0 && <span className="h-full bg-[#23788a]" style={{ width: `${(c.clsH / OPEN_HOURS) * 100}%` }} />}
+        {c.evH > 0 && <span className="h-full bg-[#c0330f]" style={{ width: `${(c.evH / OPEN_HOURS) * 100}%` }} />}
+      </div>
+      <div className={`mt-1 text-[12px] leading-tight tabular ${tight ? "font-semibold text-bad" : "text-ink-2"}`}>
+        {c.free === 0 ? "Full" : `${c.free} h free`}{tight && c.free > 0 ? " · almost full" : ""}
+      </div>
+    </div>
+  );
+}
+
+function PressureMatrix({ p }: { p: Pressure | null }) {
+  return (
+    <section className="glass overflow-hidden rounded-[16px] lg:col-span-12" aria-labelledby="press-h">
+      <div className="px-5 pt-5">
+        <h2 id="press-h" className="font-poster text-[30px] uppercase leading-none">Is there still room for Spectra?</h2>
+        <p className="mt-2 max-w-[80ch] text-[14px] leading-relaxed text-ink-2">
+          Each bar is one fest venue on one day of Week 7, from 8 am to 10 pm ({OPEN_HOURS} bookable hours).
+          The coloured part is already taken; the grey part is still free for new requests. Red text means the venue is almost full that day.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-ink-2">
+          <span className="flex items-center gap-1.5"><i className="h-3 w-5 rounded-[3px] bg-[#23788a]" />Taken by classes</span>
+          <span className="flex items-center gap-1.5"><i className="h-3 w-5 rounded-[3px] bg-[#c0330f]" />Taken by Spectra events</span>
+          <span className="flex items-center gap-1.5"><i className="h-3 w-5 rounded-[3px] bg-fill" />Still free</span>
+        </div>
+      </div>
+      {!p ? <Spinner label="Adding up the week…" /> : (
+        <div className="overflow-x-auto px-5 pb-5 pt-4">
+          <table className="w-full min-w-[640px] table-fixed border-separate border-spacing-x-3 border-spacing-y-2 text-[13px]">
+            <thead>
+              <tr>
+                <th className="w-[180px] pb-1 text-left text-[12px] font-medium text-ink-3">Venue · seats</th>
+                {DAYS.map((d) => <th key={d} scope="col" className={`pb-1 text-left font-medium ${d === p.tightest.day ? "text-bad" : "text-ink-2"}`}>{DAY_NAME[d]}{d === p.tightest.day ? " · busiest" : ""}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {p.rows.map((r) => (
+                <tr key={r.id}>
+                  <th scope="row" className="pr-2 text-left align-top font-normal"><span className="block text-[14px] font-medium text-ink">{r.name}</span><span className="tabular text-[12px] text-ink-3">{r.capacity} seats</span></th>
+                  {DAYS.map((d) => <td key={d} className="align-top"><DayBar c={r.cells[d]} name={r.name} day={DAY_NAME[d]} /></td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-2 text-right text-[13px]"><Link href="/spectra" className="font-medium text-link hover:underline">See which event got each venue</Link></div>
+        </div>
+      )}
+    </section>
   );
 }
